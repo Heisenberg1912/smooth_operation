@@ -775,7 +775,7 @@ function App() {
                           {selectedFile && <div style={{ fontSize: '12px', color: 'var(--accent-primary)', marginBottom: '16px' }}>Selected: {selectedFile.name}</div>}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', gap: '12px', fontSize: '13px', fontWeight: 600 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', backgroundColor: 'var(--border-color)', color: 'var(--text-primary)' }}><Sparkles size={14} color="var(--accent-primary)" /> Gemini Pro</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', backgroundColor: 'var(--border-color)', color: 'var(--text-primary)' }}><Sparkles size={14} color="var(--accent-primary)" /> PRO AEC LLM</div>
                             </div>
                             <button className="generate-btn" onClick={handleBannerGenerate} disabled={!selectedFile && !prompt} style={{ padding: '10px 24px', borderRadius: '8px', backgroundColor: 'var(--text-primary)', color: 'var(--bg-main)', fontWeight: 600 }}><Sparkles size={16} /> Generate</button>
                           </div>

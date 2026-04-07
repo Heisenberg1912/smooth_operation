@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"nodemon api/index.cjs\"",
-    "start": "node api/index.cjs",
+    "start": "vite preview",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -12,11 +12,18 @@ const { computeValuation } = require('./lib/valuation-engine.cjs');
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI, {
-  dbName: process.env.MONGODB_DB || 'Titiksha-builtattic'
-}).then(() => console.log('MongoDB Connected'))
-  .catch(err => console.error('MongoDB Connection Error:', err));
+const mongoUri = process.env.MONGODB_URI;
+// Database Connection (skip when unset, so likeeeeeee it avoids passing undefined to openUri)
+if (mongoUri) {
+  mongoose.connect(mongoUri, {
+    dbName: process.env.MONGODB_DB || 'Titiksha-builtattic'
+  }).then(() => console.log('MongoDB Connected'))
+    .catch(err => console.error('MongoDB Connection Error:', err));
+} else {
+  console.warn(
+    'MONGODB_URI is not set — add it to .env (see .env.example). /api routes will return 503 until configured.'
+  );
+}
 
 // Raw DB accessor
 const db = () => mongoose.connection.db;
@@ -24,6 +31,18 @@ const db = () => mongoose.connection.db;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api')) return next();
+  if (mongoose.connection.readyState === 1) return next();
+  return res.status(503).json({
+    error: 'Database unavailable',
+    message: mongoUri
+      ? 'MongoDB is not connected. Check server logs and your MONGODB_URI.'
+      : 'Set MONGODB_URI in your .env file (copy from .env.example).'
+  });
+});
+
 app.use((req, res, next) => {
   if (req.path !== '/api/index' || !req.query?.path) {
     return next();

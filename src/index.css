@@ -1,8 +1,9 @@
 :root {
-  /* Light Theme */
+  /* Light Theme - but Firefly is dark by default, we'll keep dark as default */
   --bg-main: #f9fafb;
   --bg-card: #ffffff;
   --bg-sidebar: #ffffff;
+  --bg-topbar: #ffffff;
   --text-primary: #111827;
   --text-secondary: #4b5563;
   --accent-primary: #0066ff;
@@ -16,19 +17,20 @@
 }
 
 body.dark {
-  /* Dark Theme */
-  --bg-main: #000000;
-  --bg-card: #0d0d0d;
-  --bg-sidebar: #000000;
+  /* Dark Theme - Firefly Style */
+  --bg-main: #121212;
+  --bg-card: #1e1e1e;
+  --bg-sidebar: #121212;
+  --bg-topbar: #121212;
   --text-primary: #ffffff;
-  --text-secondary: #9ca3af;
-  --accent-primary: #0066ff;
-  --accent-hover: #3385ff;
-  --border-color: #1a1a1a;
+  --text-secondary: #aaaaaa;
+  --accent-primary: #3b82f6;
+  --accent-hover: #60a5fa;
+  --border-color: #2e2e2e;
   --scroll-thumb: #333333;
   --scroll-thumb-hover: #444444;
   --overlay-bg: rgba(255, 255, 255, 0.1);
-  --btn-text: #000000;
+  --btn-text: #ffffff;
 }
 
 * {
@@ -63,4 +65,98 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scroll-thumb-hover);
+}
+
+/* ─── Sidebar (Wide) ───────────────────────────────────────────────────────── */
+
+.sidebar {
+  width: 250px;
+  min-width: 250px;
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 20px;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.builtattic-logo-sidebar {
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+  padding: 0 12px;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.sidebar-search {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.sidebar-search input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 100%;
+}
+
+.sidebar-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-item-wide {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  width: 100%;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.nav-item-wide span {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.nav-item-wide:hover, .nav-item-wide.active {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.nav-item-wide.active {
+  border: 1px solid var(--border-color);
+}
+
+.profile-icon-small {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.user-profile-item {
+  margin-top: 12px;
 }

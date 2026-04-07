@@ -8,7 +8,7 @@ import multer from 'multer';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { generateStructuredData } from './lib/gemini.js';
+import { generateStructuredData, generateFloorPlanImage } from './lib/gemini.js';
 import { computeValuation } from './lib/valuation-engine.js';
 
 const app = express();
@@ -507,21 +507,112 @@ app.post('/masterplan', optionalAuth, async (req, res) => {
 
 app.post('/floorplan', optionalAuth, async (req, res) => {
   try {
-    const { bedrooms, budget, style, area, location } = req.body;
+    const { bedrooms, budget, style, area, location, plotWidth, plotLength, floors, facing } = req.body;
+    const bhk = bedrooms || 3;
+    const totalArea = area || '1200 sqft';
+    const plotW = plotWidth || 40;
+    const plotL = plotLength || 60;
+    const numFloors = floors || 1;
+    const facingDir = facing || 'North';
+
     const prompt = `
-      Generate 3 floor plan variants. Requirements: ${bedrooms || 3} bedrooms, budget ${budget || '50-80 Lakhs'}, style: ${style || 'modern'}, area: ${area || '1200 sqft'}, location: ${location || 'India'}.
-      Output ONLY valid JSON:
-      { "plans": [{ "name": string, "config": string, "totalArea": string, "estimatedCost": string, "rooms": [{ "name": string, "area": string, "description": string }], "features": string[], "vastu_compliant": boolean, "energy_rating": string }] }
-      Return JSON only.
+You are an expert AEC (Architecture, Engineering, Construction) floor plan architect.
+Generate exactly 3 floor plan variants strictly following Indian building norms and codes.
+
+PROJECT REQUIREMENTS:
+- Configuration: ${bhk} BHK (bedrooms, hall, kitchen)
+- Budget: ${budget || '50-80 Lakhs'}
+- Style: ${style || 'Modern'}
+- Total built-up area: ${totalArea}
+- Plot dimensions: ${plotW} ft x ${plotL} ft
+- Number of floors: ${numFloors}
+- Plot facing: ${facingDir}
+- Location: ${location || 'India'}
+
+MANDATORY AEC NORMS TO FOLLOW (NBC India 2016 / IS 1893 / Local bylaws):
+1. SETBACKS: Front 3m min, Rear 2m min, Side 1.5m min (adjust per local bylaws)
+2. MINIMUM ROOM SIZES (NBC India):
+   - Master Bedroom: min 120 sqft (preferably 150+), min width 3m
+   - Bedroom: min 100 sqft, min width 2.7m
+   - Living/Drawing Room: min 150 sqft, min width 3.6m
+   - Kitchen: min 50 sqft, min width 2.1m, must have exhaust/chimney wall
+   - Dining: min 80 sqft
+   - Bathroom/Toilet: min 30 sqft attached, min width 1.2m
+   - Balcony: min 4 sqft, min width 0.6m
+3. CEILING HEIGHT: min 2.75m for habitable rooms, 2.4m for bathroom/kitchen
+4. VENTILATION: Every habitable room must have window area >= 1/10th of floor area
+5. STAIRCASE: min width 1m for residential, riser max 190mm, tread min 250mm
+6. CORRIDOR/PASSAGE: min width 1m
+7. FSI/FAR: Compute Floor Space Index = total built-up area / plot area. Must be <= 2.5 typical residential.
+8. VASTU (if applicable for Indian context): Master bedroom SW, Kitchen SE, Entrance ${facingDir}
+9. PARKING: min 1 car parking (2.5m x 5m) for each dwelling unit
+10. FIRE SAFETY: If > 15m height, refuge area + fire staircase required
+11. STRUCTURAL: Load-bearing walls min 230mm, RCC columns as per IS 456
+
+For EACH of the 3 plan variants, provide:
+- Room layout with EXACT dimensions in feet (width x length) that fit within the plot
+- Rooms must tile/pack within the plot rectangle — no overlapping, all rooms must fit
+- x,y position of each room relative to top-left corner of the plot (in feet)
+- Compliance status for each AEC norm checked
+
+Output ONLY valid JSON in this exact structure:
+{
+  "plans": [
+    {
+      "name": "string - variant name",
+      "config": "string - e.g. 3BHK Compact",
+      "totalArea": "string - total built-up area",
+      "estimatedCost": "string - cost estimate",
+      "plotWidth": ${plotW},
+      "plotLength": ${plotL},
+      "floors": ${numFloors},
+      "fsi": "number - computed FSI value as string",
+      "rooms": [
+        {
+          "name": "string - room name (e.g. Master Bedroom, Living Room, Kitchen, Bathroom 1, Balcony, Parking, Staircase, Passage)",
+          "width": "number - width in feet",
+          "length": "number - length in feet",
+          "x": "number - x position from left in feet",
+          "y": "number - y position from top in feet",
+          "area": "string - area in sqft",
+          "description": "string - brief note",
+          "floor": 0
+        }
+      ],
+      "features": ["string - key architectural features"],
+      "compliance": {
+        "setbacks": { "status": true, "detail": "Front 3m, Rear 2m, Side 1.5m maintained" },
+        "roomSizes": { "status": true, "detail": "All rooms meet NBC minimum sizes" },
+        "ventilation": { "status": true, "detail": "Window area >= 1/10th floor area for all rooms" },
+        "fsi": { "status": true, "detail": "FSI 1.8 within 2.5 limit" },
+        "vastu": { "status": true, "detail": "Master BR in SW, Kitchen in SE, Entry from ${facingDir}" },
+        "parking": { "status": true, "detail": "1 covered car park 12.5x10 ft" },
+        "fireNorms": { "status": true, "detail": "Single floor, not applicable" },
+        "staircase": { "status": true, "detail": "Width 3.5ft, riser 7in, tread 10in" },
+        "ceilingHeight": { "status": true, "detail": "2.75m habitable, 2.4m wet areas" }
+      },
+      "vastu_compliant": true,
+      "energy_rating": "string - A+ to D"
+    }
+  ]
+}
+
+CRITICAL RULES:
+- All room x,y,width,length values MUST be numbers (not strings)
+- Rooms must NOT overlap and must fit within plotWidth x plotLength
+- Include setback zones (don't place rooms in setback area — start rooms at ~5ft from front, ~7ft from sides, ~7ft from rear)
+- Every plan must have: all bedrooms, living room, kitchen, dining, bathrooms (1 per bedroom + 1 common), at least 1 balcony, passage/corridor, parking
+- Return ONLY the JSON, no other text
     `;
+
     const result = await generateStructuredData(prompt);
 
     if (req.user) {
       await db().collection('generations').insertOne({
         userId: new mongoose.Types.ObjectId(req.user.userId),
         type: 'floor-plan',
-        title: `Floor Plan - ${bedrooms || 3}BHK ${style || 'Modern'}`,
-        input: { bedrooms, budget, style, area, location },
+        title: `Floor Plan - ${bhk}BHK ${style || 'Modern'}`,
+        input: { bedrooms: bhk, budget, style, area: totalArea, location, plotWidth: plotW, plotLength: plotL, floors: numFloors, facing: facingDir },
         result,
         status: 'completed',
         createdAt: new Date()
@@ -532,6 +623,67 @@ app.post('/floorplan', optionalAuth, async (req, res) => {
   } catch (error) {
     console.error('Floor plan error:', error);
     res.status(500).json({ error: 'Failed to generate floor plans' });
+  }
+});
+
+// ─── Floor Plan Image Generator (Gemini Vision) ─────────────────────────────
+
+app.post('/floorplan-image', optionalAuth, async (req, res) => {
+  try {
+    const { bedrooms, style, area, plotWidth, plotLength, floors, facing, location, variantName, variantFeatures, roomLayout } = req.body;
+    const bhk = bedrooms || 3;
+    const plotW = plotWidth || 40;
+    const plotL = plotLength || 60;
+
+    // Build variant-specific prompt sections
+    const variantSection = variantName
+      ? `\nVariant: "${variantName}"${variantFeatures ? `\nKey features of this variant: ${variantFeatures}` : ''}`
+      : '';
+    const roomSection = roomLayout
+      ? `\nExact room layout to draw:\n${roomLayout}`
+      : `\nInclude: all ${bhk} bedrooms with attached bathrooms, living room, dining, kitchen, balconies, parking, staircase`;
+
+    const imagePrompt = `Generate a professional 2D architectural floor plan blueprint image for a ${bhk} BHK ${style || 'Modern'} residential house.
+${variantSection}
+
+Specifications:
+- Plot: ${plotW}ft x ${plotL}ft, Facing: ${facing || 'North'}
+- Built-up area: ${area || '1200 sqft'}, Floors: ${floors || 1}
+- Location context: ${location || 'India'}
+${roomSection}
+
+The floor plan MUST follow these AEC norms:
+- NBC India 2016 minimum room sizes (Master BR >= 120sqft, Bedroom >= 100sqft, Kitchen >= 50sqft, Living >= 150sqft)
+- Front setback 10ft, side setbacks 5ft, rear setback 7ft
+- Vastu: Master bedroom in South-West, Kitchen in South-East, Main entrance from ${facing || 'North'}
+- Label every room with name and dimensions (width x length in feet)
+
+Drawing style requirements:
+- Clean black lines on white background, professional architectural blueprint style
+- Top-down 2D view, NOT 3D or isometric
+- Thick outer walls (230mm), thinner internal partition walls (115mm)
+- Show door swings as arcs, window marks on external walls
+- Include a north arrow indicator and scale bar
+- Label all rooms clearly with room name and "W' x L'" dimensions
+- Show setback boundaries as dashed lines
+- Use standard architectural hatching for wet areas (kitchen, bathrooms)
+- Mark column positions as small filled squares at structural points
+
+IMPORTANT: This is the "${variantName || 'Standard'}" variant — make the layout UNIQUE to this variant's specific room arrangement and features. Do NOT generate a generic plan.`;
+
+    const { imageBase64, imageMimeType, textContent } = await generateFloorPlanImage(imagePrompt);
+
+    if (!imageBase64) {
+      return res.status(500).json({ error: 'Image generation failed — no image returned from model' });
+    }
+
+    res.json({
+      image: `data:${imageMimeType};base64,${imageBase64}`,
+      description: textContent || `${bhk}BHK ${variantName || style || 'Modern'} floor plan`
+    });
+  } catch (error) {
+    console.error('Floor plan image error:', error);
+    res.status(500).json({ error: 'Failed to generate floor plan image: ' + (error.message || 'Unknown error') });
   }
 });
 
@@ -567,8 +719,7 @@ app.post('/materials', optionalAuth, async (req, res) => {
   }
 });
 
-const isDirectRun = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'));
-if (isDirectRun) {
+if (!process.env.VERCEL) {
   app.listen(port, () => {
     console.log(`Builtattic backend running on port ${port}`);
   });

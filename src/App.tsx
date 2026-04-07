@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Home, Search, Map, Package, LayoutGrid, Building2,
-  Sparkles, Upload, X, LogOut, LogIn, Moon, Sun, Briefcase, FileText,
-  TrendingUp, Users, Eye, CheckCircle2, Loader2, Star,
-  ShoppingBag, MessageCircle
+  Sparkles, Upload, X, LogIn, Moon, Sun, Briefcase, FileText,
+  TrendingUp, CheckCircle2, Loader2,
+  Shield, AlertTriangle, ChevronDown, ChevronUp,
+  Ruler, Compass, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
@@ -36,44 +37,69 @@ function authHeaders(): Record<string, string> {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 const Sidebar = ({ active, setActive, user, onLogout, onLoginClick, isDarkMode, toggleTheme }: any) => {
-  const items = [
+  const topItems = [
     { id: 'home', icon: Home, label: 'Home' },
-    { id: 'site', icon: Building2, label: 'Site' },
-    { id: 'floor', icon: LayoutGrid, label: 'Floor' },
-    { id: 'market', icon: Map, label: 'Market' },
+    { id: 'site', icon: Building2, label: 'Site Analyzer' },
+    { id: 'floor', icon: LayoutGrid, label: 'Floor Plans' },
     { id: 'materials', icon: Package, label: 'Materials' },
-    { id: 'projects', icon: Briefcase, label: 'Projects' },
+    { id: 'market', icon: Map, label: 'Masterplan' },
+  ];
+  const bottomItems = [
+    { id: 'projects', icon: Briefcase, label: 'My Dashboard' },
   ];
 
   return (
     <div className="sidebar">
       <div className="sidebar-top">
-        <div className="sidebar-logo-container">
-          <div className="builtattic-logo" onClick={() => setActive('home')} style={{ cursor: 'pointer' }}>BA</div>
-        </div>
-        {items.map(item => (
-          <div key={item.id} className={`nav-item ${active === item.id ? 'active' : ''}`} onClick={() => setActive(item.id)}>
-            <item.icon size={20} />
-            <span>{item.label}</span>
+        <div className="builtattic-logo-sidebar" onClick={() => setActive('home')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src="https://builtattic.com/assets/images/logo.png" alt="Builtattic" style={{ height: '36px' }} onError={(e: any) => { e.target.style.display = 'none'; }} />
+          <div style={{ lineHeight: 1.1 }}>
+            <span style={{ fontWeight: 700, fontSize: '15px' }}>Adobe</span><br/>
+            <span style={{ fontWeight: 400, fontSize: '15px' }}>Builtattic</span>
           </div>
-        ))}
+        </div>
+
+        <div className="sidebar-search">
+          <Search size={14} color="var(--text-secondary)" />
+          <input type="text" placeholder="Search..." />
+        </div>
+
+        <div className="sidebar-nav-group">
+          {topItems.map(item => (
+            <div key={item.id} className={`nav-item-wide ${active === item.id ? 'active' : ''}`} onClick={() => setActive(item.id)}>
+              <item.icon size={18} />
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
+      
       <div className="sidebar-bottom">
-        <div className="nav-item" onClick={toggleTheme} title="Toggle Theme">
-          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-          <span>{isDarkMode ? 'Light' : 'Dark'}</span>
+        <div className="sidebar-nav-group">
+          {bottomItems.map(item => (
+            <div key={item.id} className={`nav-item-wide ${active === item.id ? 'active' : ''}`} onClick={() => setActive(item.id)}>
+              <item.icon size={18} />
+              <span>{item.label}</span>
+            </div>
+          ))}
+          
+          <div className="nav-item-wide" onClick={toggleTheme}>
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            <span>Theme</span>
+          </div>
+
+          {user ? (
+            <div className="nav-item-wide user-profile-item" onClick={onLogout}>
+              <div className="profile-icon-small">{user.name.charAt(0)}</div>
+              <span>Logout</span>
+            </div>
+          ) : (
+            <div className="nav-item-wide" onClick={onLoginClick}>
+              <LogIn size={18} />
+              <span>Sign In</span>
+            </div>
+          )}
         </div>
-        {user ? (
-          <div className="nav-item" onClick={onLogout}>
-            <LogOut size={20} />
-            <span>Logout</span>
-          </div>
-        ) : (
-          <div className="nav-item" onClick={onLoginClick}>
-            <LogIn size={20} />
-            <span>Login</span>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -444,6 +470,142 @@ const MarketView = ({ onGenerated }: any) => {
   );
 };
 
+// ─── Floor Plan SVG Renderer ─────────────────────────────────────────────────
+
+const ROOM_COLORS: Record<string, string> = {
+  'master bedroom': '#6366f1', 'bedroom': '#818cf8', 'bedroom 1': '#818cf8', 'bedroom 2': '#a5b4fc', 'bedroom 3': '#c7d2fe',
+  'living room': '#22c55e', 'living': '#22c55e', 'drawing room': '#22c55e',
+  'kitchen': '#f59e0b', 'dining': '#fb923c', 'dining room': '#fb923c',
+  'bathroom': '#06b6d4', 'bathroom 1': '#06b6d4', 'bathroom 2': '#67e8f9', 'toilet': '#06b6d4', 'common bathroom': '#67e8f9',
+  'balcony': '#84cc16', 'balcony 1': '#84cc16', 'balcony 2': '#a3e635',
+  'parking': '#94a3b8', 'car parking': '#94a3b8',
+  'staircase': '#d946ef', 'passage': '#a1a1aa', 'corridor': '#a1a1aa',
+  'pooja room': '#e879f9', 'store': '#78716c', 'utility': '#78716c', 'wash area': '#78716c',
+};
+
+const getRoomColor = (name: string) => {
+  const lower = name.toLowerCase();
+  for (const [key, color] of Object.entries(ROOM_COLORS)) {
+    if (lower.includes(key)) return color;
+  }
+  return '#64748b';
+};
+
+const FloorPlanSVG = ({ plan, svgRef }: { plan: any; svgRef?: React.RefObject<SVGSVGElement | null> }) => {
+  const plotW = plan.plotWidth || 40;
+  const plotL = plan.plotLength || 60;
+  const padding = 2;
+  const scale = 10;
+  const svgW = (plotW + padding * 2) * scale;
+  const svgH = (plotL + padding * 2) * scale;
+
+  const rooms = (plan.rooms || []).filter((r: any) => r.floor === 0 || !r.floor);
+
+  return (
+    <svg ref={svgRef} viewBox={`0 0 ${svgW} ${svgH}`} style={{ width: '100%', maxHeight: '500px', background: '#0f172a', borderRadius: '12px' }}>
+      {/* Plot boundary */}
+      <rect x={padding * scale} y={padding * scale} width={plotW * scale} height={plotL * scale}
+        fill="none" stroke="#334155" strokeWidth="2" strokeDasharray="8,4" />
+      {/* Setback zone */}
+      <rect x={(padding + 5) * scale} y={(padding + 5) * scale}
+        width={(plotW - 10) * scale} height={(plotL - 12) * scale}
+        fill="none" stroke="#475569" strokeWidth="1" strokeDasharray="4,4" opacity={0.5} />
+      {/* Plot dimensions label */}
+      <text x={svgW / 2} y={padding * scale - 4} textAnchor="middle" fontSize="11" fill="#94a3b8">{plotW} ft</text>
+      <text x={padding * scale - 4} y={svgH / 2} textAnchor="middle" fontSize="11" fill="#94a3b8" transform={`rotate(-90, ${padding * scale - 4}, ${svgH / 2})`}>{plotL} ft</text>
+      {/* North arrow */}
+      <g transform={`translate(${svgW - 35}, 18)`}>
+        <polygon points="0,14 6,0 12,14" fill="none" stroke="#94a3b8" strokeWidth="1" />
+        <text x="6" y="24" textAnchor="middle" fontSize="9" fill="#94a3b8">N</text>
+      </g>
+      {/* Rooms */}
+      {rooms.map((room: any, i: number) => {
+        const rx = (padding + (Number(room.x) || 0)) * scale;
+        const ry = (padding + (Number(room.y) || 0)) * scale;
+        const rw = (Number(room.width) || 8) * scale;
+        const rh = (Number(room.length) || 8) * scale;
+        const color = getRoomColor(room.name);
+        const fontSize = Math.min(rw, rh) > 60 ? 10 : 8;
+        return (
+          <g key={i}>
+            <rect x={rx} y={ry} width={rw} height={rh}
+              fill={color} fillOpacity={0.2} stroke={color} strokeWidth="1.5" rx="2" />
+            {/* Room name */}
+            <text x={rx + rw / 2} y={ry + rh / 2 - 4} textAnchor="middle" fontSize={fontSize} fill={color} fontWeight="600">
+              {room.name}
+            </text>
+            {/* Dimensions */}
+            <text x={rx + rw / 2} y={ry + rh / 2 + 10} textAnchor="middle" fontSize={Math.max(fontSize - 2, 7)} fill="#94a3b8">
+              {room.width}×{room.length} ft
+            </text>
+            {/* Door indicator (small gap on the bottom or right edge) */}
+            {!room.name.toLowerCase().includes('parking') && !room.name.toLowerCase().includes('balcony') && (
+              <rect x={rx + rw / 2 - 4} y={ry + rh - 1} width={8} height={2} fill={color} rx="1" />
+            )}
+          </g>
+        );
+      })}
+      {/* Legend */}
+      <g transform={`translate(${padding * scale}, ${svgH - 14})`}>
+        <text fontSize="8" fill="#64748b">--- Plot boundary &nbsp; ··· Setback zone &nbsp; ▪ Door</text>
+      </g>
+    </svg>
+  );
+};
+
+// ─── AEC Compliance Panel ────────────────────────────────────────────────────
+
+const CompliancePanel = ({ compliance }: { compliance: any }) => {
+  const [expanded, setExpanded] = useState(false);
+  if (!compliance) return null;
+
+  const checks = Object.entries(compliance) as [string, { status: boolean; detail: string }][];
+  const passCount = checks.filter(([, v]) => v.status).length;
+  const totalCount = checks.length;
+  const allPass = passCount === totalCount;
+
+  const normLabels: Record<string, string> = {
+    setbacks: 'Setbacks (NBC 2016)',
+    roomSizes: 'Min Room Sizes (NBC)',
+    ventilation: 'Ventilation (1/10th)',
+    fsi: 'FSI / FAR Limit',
+    vastu: 'Vastu Compliance',
+    parking: 'Parking (1 ECS/unit)',
+    fireNorms: 'Fire Safety (NBC)',
+    staircase: 'Staircase (IS 1893)',
+    ceilingHeight: 'Ceiling Height (2.75m)',
+  };
+
+  return (
+    <div style={{ background: allPass ? 'rgba(34,197,94,0.06)' : 'rgba(245,158,11,0.06)', borderRadius: '12px', border: `1px solid ${allPass ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)'}`, overflow: 'hidden' }}>
+      <button onClick={() => setExpanded(!expanded)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Shield size={16} color={allPass ? '#22c55e' : '#f59e0b'} />
+          <span style={{ fontSize: '13px', fontWeight: 600 }}>AEC Compliance: {passCount}/{totalCount} passed</span>
+        </div>
+        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+      {expanded && (
+        <div style={{ padding: '0 16px 12px' }}>
+          {checks.map(([key, val]) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
+              {val.status
+                ? <CheckCircle2 size={14} color="#22c55e" style={{ marginTop: '2px', flexShrink: 0 }} />
+                : <AlertTriangle size={14} color="#f59e0b" style={{ marginTop: '2px', flexShrink: 0 }} />
+              }
+              <div>
+                <span style={{ fontSize: '12px', fontWeight: 600 }}>{normLabels[key] || key}</span>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>{val.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Floor Plan View ──────────────────────────────────────────────────────────
 
 const FloorView = ({ onGenerated }: any) => {
@@ -452,65 +614,300 @@ const FloorView = ({ onGenerated }: any) => {
   const [style, setStyle] = useState('Modern');
   const [area, setArea] = useState('1200 sqft');
   const [location, setLocation] = useState('');
+  const [plotWidth, setPlotWidth] = useState('40');
+  const [plotLength, setPlotLength] = useState('60');
+  const [floors, setFloors] = useState('1');
+  const [facing, setFacing] = useState('North');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
+  const [activePlan, setActivePlan] = useState(0);
+  const [showRoomList, setShowRoomList] = useState(true);
+  const [viewMode, setViewMode] = useState<'blueprint' | 'schematic'>('blueprint');
+  const [blueprintCache, setBlueprintCache] = useState<Record<number, { image: string; description: string }>>({});
+  const [blueprintLoading, setBlueprintLoading] = useState(false);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  const fetchBlueprintForPlan = async (plan: any, planIndex: number) => {
+    if (blueprintCache[planIndex]) return; // already cached
+    setBlueprintLoading(true);
+    try {
+      const roomSummary = (plan.rooms || []).map((r: any) => `${r.name}: ${r.width}x${r.length}ft`).join(', ');
+      const res = await fetch(`${API_URL}/floorplan-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          bedrooms: Number(bedrooms), style, area, plotWidth: Number(plotWidth), plotLength: Number(plotLength),
+          floors: Number(floors), facing, location,
+          variantName: plan.name || plan.config,
+          variantFeatures: (plan.features || []).join(', '),
+          roomLayout: roomSummary
+        })
+      });
+      const data = await res.json();
+      if (data.image) {
+        setBlueprintCache(prev => ({ ...prev, [planIndex]: { image: data.image, description: data.description || '' } }));
+      }
+    } catch (e) { /* silent — user can switch to schematic */ }
+    finally { setBlueprintLoading(false); }
+  };
 
   const handleGenerate = async () => {
-    setLoading(true); setError('');
+    setLoading(true); setError(''); setResult(null); setActivePlan(0);
+    setBlueprintCache({}); setBlueprintLoading(false); setViewMode('blueprint');
+    const payload = { bedrooms: Number(bedrooms), budget, style, area, location, plotWidth: Number(plotWidth), plotLength: Number(plotLength), floors: Number(floors), facing };
+
     try {
-      const res = await fetch(`${API_URL}/floorplan`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ bedrooms: Number(bedrooms), budget, style, area, location }) });
+      const res = await fetch(`${API_URL}/floorplan`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setResult(data);
       onGenerated?.();
+      // Auto-fetch image for first plan variant
+      if (data.plans?.[0]) {
+        setTimeout(() => fetchBlueprintForPlan(data.plans[0], 0), 0);
+      }
     } catch (err: any) { setError(err.message); } finally { setLoading(false); }
   };
 
+  // Fetch blueprint when user switches variant tab
+  useEffect(() => {
+    if (result?.plans?.[activePlan] && viewMode === 'blueprint' && !blueprintCache[activePlan]) {
+      fetchBlueprintForPlan(result.plans[activePlan], activePlan);
+    }
+  }, [activePlan, viewMode]);
+
+  const handleDownloadSVG = () => {
+    if (!svgRef.current) return;
+    const svgData = new XMLSerializer().serializeToString(svgRef.current);
+    const blob = new Blob([svgData], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `floorplan-${result?.plans?.[activePlan]?.config || 'plan'}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const currentPlan = result?.plans?.[activePlan];
+
   return (
     <div style={{ padding: '32px 48px' }}>
-      <h2 style={{ marginBottom: '8px', fontSize: '24px' }}>Floor Plan Insights</h2>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '14px' }}>AI floor plan variants with cost estimates and room layouts.</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+        <h2 style={{ fontSize: '24px', margin: 0 }}>Floor Plan Generator</h2>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(99,102,241,0.12)', color: '#818cf8', fontSize: '11px', fontWeight: 600 }}>
+          <Shield size={12} /> AEC Norm Compliant
+        </span>
+      </div>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '14px' }}>
+        AI-generated floor plans following NBC India 2016, IS 1893, Vastu & local building bylaws.
+      </p>
+
+      {/* Input Form */}
       <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)', marginBottom: '24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-          <div><label className="form-label">Bedrooms</label><select value={bedrooms} onChange={e => setBedrooms(e.target.value)} className="form-input"><option value="1">1 BHK</option><option value="2">2 BHK</option><option value="3">3 BHK</option><option value="4">4 BHK</option></select></div>
-          <div><label className="form-label">Budget</label><input type="text" value={budget} onChange={e => setBudget(e.target.value)} className="form-input" /></div>
-          <div><label className="form-label">Style</label><select value={style} onChange={e => setStyle(e.target.value)} className="form-input"><option>Modern</option><option>Traditional</option><option>Contemporary</option><option>Minimalist</option></select></div>
-          <div><label className="form-label">Area</label><input type="text" value={area} onChange={e => setArea(e.target.value)} className="form-input" /></div>
-          <div><label className="form-label">Location</label><input type="text" placeholder="City" value={location} onChange={e => setLocation(e.target.value)} className="form-input" /></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+          <Ruler size={14} /> Project Configuration
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-          <button className="generate-btn" onClick={handleGenerate} disabled={loading}>{loading ? <><Loader2 size={16} className="spin" /> Generating...</> : <><Sparkles size={16} /> Generate Plans</>}</button>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
+          <div><label className="form-label">Bedrooms</label><select value={bedrooms} onChange={e => setBedrooms(e.target.value)} className="form-input"><option value="1">1 BHK</option><option value="2">2 BHK</option><option value="3">3 BHK</option><option value="4">4 BHK</option><option value="5">5 BHK</option></select></div>
+          <div><label className="form-label">Budget</label><input type="text" value={budget} onChange={e => setBudget(e.target.value)} className="form-input" /></div>
+          <div><label className="form-label">Style</label><select value={style} onChange={e => setStyle(e.target.value)} className="form-input"><option>Modern</option><option>Traditional</option><option>Contemporary</option><option>Minimalist</option><option>Vernacular</option><option>Neo-Classical</option></select></div>
+          <div><label className="form-label">Built-up Area</label><input type="text" value={area} onChange={e => setArea(e.target.value)} className="form-input" /></div>
+          <div><label className="form-label">Plot Width (ft)</label><input type="number" value={plotWidth} onChange={e => setPlotWidth(e.target.value)} className="form-input" min="20" /></div>
+          <div><label className="form-label">Plot Length (ft)</label><input type="number" value={plotLength} onChange={e => setPlotLength(e.target.value)} className="form-input" min="20" /></div>
+          <div><label className="form-label">Floors</label><select value={floors} onChange={e => setFloors(e.target.value)} className="form-input"><option value="1">Ground (G)</option><option value="2">G + 1</option><option value="3">G + 2</option><option value="4">G + 3</option></select></div>
+          <div><label className="form-label">Facing</label><select value={facing} onChange={e => setFacing(e.target.value)} className="form-input"><option>North</option><option>South</option><option>East</option><option>West</option><option>North-East</option><option>North-West</option><option>South-East</option><option>South-West</option></select></div>
+          <div><label className="form-label">Location</label><input type="text" placeholder="City / Region" value={location} onChange={e => setLocation(e.target.value)} className="form-input" /></div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {[
+              'NBC India 2016', 'IS 1893 Seismic', 'IS 456 RCC', 'Vastu Shastra', 'Fire Safety (NBC Part 4)'
+            ].map(norm => (
+              <span key={norm} style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '4px', background: 'var(--border-color)', color: 'var(--text-secondary)' }}>{norm}</span>
+            ))}
+          </div>
+          <button className="generate-btn" onClick={handleGenerate} disabled={loading}>
+            {loading ? <><Loader2 size={16} className="spin" /> Generating with AEC norms...</> : <><Sparkles size={16} /> Generate Plans</>}
+          </button>
         </div>
         {error && <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '8px' }}>{error}</p>}
       </div>
+
+      {/* Results */}
       {result?.plans ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-          {result.plans.map((plan: any, i: number) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.15 }}
-              style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
-              <div style={{ height: '100px', background: 'linear-gradient(135deg, var(--accent-primary), #4338ca)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                <div style={{ textAlign: 'center' }}><LayoutGrid size={28} /><p style={{ fontSize: '14px', marginTop: '8px', fontWeight: 600 }}>{plan.config || plan.name}</p></div>
-              </div>
-              <div style={{ padding: '20px' }}>
-                <h4 style={{ margin: '0 0 4px' }}>{plan.name}</h4>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>{plan.totalArea} | Est. {plan.estimatedCost}</p>
-                {plan.rooms?.slice(0, 4).map((room: any, ri: number) => (
-                  <div key={ri} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-                    <span>{room.name}</span><span style={{ color: 'var(--text-secondary)' }}>{room.area}</span>
+        <div>
+          {/* Plan variant tabs */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            {result.plans.map((plan: any, i: number) => (
+              <button key={i} onClick={() => setActivePlan(i)}
+                style={{ padding: '10px 20px', borderRadius: '10px', border: `1.5px solid ${i === activePlan ? 'var(--accent-primary)' : 'var(--border-color)'}`, background: i === activePlan ? 'rgba(99,102,241,0.1)' : 'var(--bg-card)', color: i === activePlan ? 'var(--accent-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                {plan.config || plan.name}
+              </button>
+            ))}
+          </div>
+
+          {currentPlan && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={activePlan}>
+              {/* Header stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                {[
+                  { label: 'Total Area', value: currentPlan.totalArea, icon: <LayoutGrid size={16} /> },
+                  { label: 'Est. Cost', value: currentPlan.estimatedCost, icon: <TrendingUp size={16} /> },
+                  { label: 'FSI', value: currentPlan.fsi || 'N/A', icon: <Building2 size={16} /> },
+                  { label: 'Energy', value: currentPlan.energy_rating || 'N/A', icon: <Sparkles size={16} /> },
+                  { label: 'Floors', value: `${currentPlan.floors || 1}`, icon: <Building2 size={16} /> },
+                  { label: 'Plot', value: `${currentPlan.plotWidth || plotWidth} × ${currentPlan.plotLength || plotLength} ft`, icon: <Ruler size={16} /> },
+                ].map((stat, i) => (
+                  <div key={i} style={{ background: 'var(--bg-card)', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '11px', marginBottom: '4px' }}>{stat.icon}{stat.label}</div>
+                    <div style={{ fontSize: '16px', fontWeight: 700 }}>{stat.value}</div>
                   </div>
                 ))}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px' }}>
-                  {plan.vastu_compliant && <span className="detail-badge badge-green" style={{ fontSize: '11px' }}>Vastu</span>}
-                  {plan.energy_rating && <span className="detail-badge badge-blue" style={{ fontSize: '11px' }}>{plan.energy_rating}</span>}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '16px' }}>
+                {/* Floor Plan Visualization */}
+                <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                  {/* View mode toggle + actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', gap: '4px', background: 'var(--border-color)', borderRadius: '8px', padding: '2px' }}>
+                      <button onClick={() => setViewMode('blueprint')}
+                        style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', background: viewMode === 'blueprint' ? 'var(--bg-card)' : 'transparent', color: viewMode === 'blueprint' ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                        <Sparkles size={12} style={{ marginRight: 4, verticalAlign: -1 }} />AI Blueprint
+                      </button>
+                      <button onClick={() => setViewMode('schematic')}
+                        style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', background: viewMode === 'schematic' ? 'var(--bg-card)' : 'transparent', color: viewMode === 'schematic' ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                        <LayoutGrid size={12} style={{ marginRight: 4, verticalAlign: -1 }} />Schematic
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {viewMode === 'blueprint' && blueprintCache[activePlan] && (
+                        <a href={blueprintCache[activePlan].image} download={`floorplan-${currentPlan.config || 'plan'}.png`}
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '11px', textDecoration: 'none' }}>
+                          <Download size={12} /> PNG
+                        </a>
+                      )}
+                      {viewMode === 'schematic' && (
+                        <button onClick={handleDownloadSVG} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '11px' }}>
+                          <Download size={12} /> SVG
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Blueprint (Gemini image) view */}
+                  {viewMode === 'blueprint' && (
+                    <div style={{ padding: '16px', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {blueprintLoading && !blueprintCache[activePlan] ? (
+                        <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                          <Loader2 size={32} className="spin" style={{ marginBottom: '12px' }} />
+                          <p style={{ fontSize: '13px' }}>Generating blueprint for {currentPlan?.config || currentPlan?.name}...</p>
+                          <p style={{ fontSize: '11px', opacity: 0.6 }}>This may take 15-30 seconds</p>
+                        </div>
+                      ) : blueprintCache[activePlan] ? (
+                        <div style={{ width: '100%' }}>
+                          <img src={blueprintCache[activePlan].image} alt={`Floor Plan — ${currentPlan?.config || currentPlan?.name}`}
+                            style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
+                          {blueprintCache[activePlan].description && (
+                            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px', lineHeight: 1.5 }}>{blueprintCache[activePlan].description}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                          <AlertTriangle size={24} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                          <p style={{ fontSize: '13px' }}>Blueprint generation unavailable — switch to Schematic view</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Schematic (SVG) view */}
+                  {viewMode === 'schematic' && (
+                    <>
+                      <div style={{ padding: '16px' }}>
+                        <FloorPlanSVG plan={currentPlan} svgRef={svgRef} />
+                      </div>
+                      <div style={{ padding: '0 16px 12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {(currentPlan.rooms || []).filter((r: any) => r.floor === 0 || !r.floor).reduce((acc: any[], r: any) => {
+                          const color = getRoomColor(r.name);
+                          if (!acc.find((a: any) => a.color === color)) acc.push({ name: r.name, color });
+                          return acc;
+                        }, []).map((item: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                            <div style={{ width: 8, height: 8, borderRadius: 2, background: item.color }} />
+                            {item.name}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Right sidebar */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Compliance Panel */}
+                  <CompliancePanel compliance={currentPlan.compliance} />
+
+                  {/* Room Schedule */}
+                  <div style={{ background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                    <button onClick={() => setShowRoomList(!showRoomList)}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', borderBottom: showRoomList ? '1px solid var(--border-color)' : 'none' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>Room Schedule ({currentPlan.rooms?.length || 0} rooms)</span>
+                      {showRoomList ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                    {showRoomList && (
+                      <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ background: 'var(--border-color)' }}>
+                              <th style={{ padding: '6px 12px', textAlign: 'left', fontWeight: 600 }}>Room</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600 }}>W × L</th>
+                              <th style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>Area</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(currentPlan.rooms || []).filter((r: any) => r.floor === 0 || !r.floor).map((room: any, ri: number) => (
+                              <tr key={ri} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                <td style={{ padding: '6px 12px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <div style={{ width: 6, height: 6, borderRadius: 2, background: getRoomColor(room.name) }} />
+                                    {room.name}
+                                  </div>
+                                </td>
+                                <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--text-secondary)' }}>{room.width}×{room.length}</td>
+                                <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>{room.area}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Features & Badges */}
+                  <div style={{ background: 'var(--bg-card)', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Features</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {currentPlan.vastu_compliant && <span className="detail-badge badge-green" style={{ fontSize: '11px' }}><Compass size={10} /> Vastu Compliant</span>}
+                      {currentPlan.energy_rating && <span className="detail-badge badge-blue" style={{ fontSize: '11px' }}>Energy: {currentPlan.energy_rating}</span>}
+                      {(currentPlan.features || []).map((f: string, fi: number) => (
+                        <span key={fi} style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '4px', background: 'var(--border-color)', color: 'var(--text-secondary)' }}>{f}</span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
-          ))}
+          )}
         </div>
       ) : !loading && (
         <div style={{ background: 'var(--bg-card)', padding: '64px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-          <LayoutGrid size={48} color="var(--accent-primary)" style={{ marginBottom: '16px' }} /><h3>Configure and Generate</h3>
+          <Building2 size={48} color="var(--accent-primary)" style={{ marginBottom: '16px' }} />
+          <h3>Configure Your Project & Generate</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', maxWidth: '400px', margin: '8px auto 0' }}>
+            Plans are generated following NBC India 2016 norms with setback calculations, minimum room sizes, FSI checks, ventilation ratios, and Vastu guidelines.
+          </p>
         </div>
       )}
     </div>
@@ -677,28 +1074,25 @@ const ProjectsView = ({ user, onLoginClick }: any) => {
 function App() {
   const [user, setUser] = useState<any>(null);
   const [currentView, setCurrentView] = useState('home');
-  const [activeTab, setActiveTab] = useState('All');
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoginView, setIsLoginView] = useState(true);
   const [selectedDesign, setSelectedDesign] = useState<any>(null);
 
-  const [isDarkMode, setIsDarkMode] = useState(() =>
-    localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  );
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    return true;
+  });
 
   useEffect(() => { document.body.classList.toggle('dark', isDarkMode); localStorage.setItem('theme', isDarkMode ? 'dark' : 'light'); }, [isDarkMode]);
 
-  // Platform data
-  const [stats, setStats] = useState<any>(null);
-  const [designs, setDesigns] = useState<any[]>([]);
-  const [associates, setAssociates] = useState<any[]>([]);
   const [myGenerations, setMyGenerations] = useState<any[]>([]);
+  const [designs, setDesigns] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('All');
 
-  // Banner prompt
   const [prompt, setPrompt] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const selectedFile = null;
 
-  // Fetch user
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -707,28 +1101,33 @@ function App() {
     }
   }, []);
 
-  const fetchStats = useCallback(() => { fetch(`${API_URL}/stats`).then(r => r.json()).then(setStats).catch(() => {}); }, []);
+
   const fetchDesigns = useCallback((cat?: string) => {
     const url = cat && cat !== 'All' ? `${API_URL}/designs?category=${cat}` : `${API_URL}/designs`;
     fetch(url).then(r => r.json()).then(d => Array.isArray(d) && setDesigns(d)).catch(() => {});
   }, []);
-  const fetchAssociates = useCallback(() => { fetch(`${API_URL}/associates`).then(r => r.json()).then(d => Array.isArray(d) && setAssociates(d)).catch(() => {}); }, []);
+
   const fetchMyGenerations = useCallback(() => {
     if (!user) return;
     fetch(`${API_URL}/my/generations?limit=10`, { headers: { ...authHeaders() } })
       .then(r => r.json()).then(d => Array.isArray(d) && setMyGenerations(d)).catch(() => {});
   }, [user]);
 
-  useEffect(() => { fetchStats(); fetchDesigns(); fetchAssociates(); }, [fetchStats, fetchDesigns, fetchAssociates]);
   useEffect(() => { fetchMyGenerations(); }, [fetchMyGenerations]);
+  useEffect(() => { fetchDesigns(activeTab); }, [fetchDesigns, activeTab]);
 
-  const handleTabChange = (tab: string) => { setActiveTab(tab); fetchDesigns(tab); };
-  const refreshAll = () => { fetchStats(); fetchDesigns(); fetchMyGenerations(); };
+  const refreshAll = () => { fetchMyGenerations(); };
   const openLogin = () => { setIsLoginView(true); setIsAuthModalOpen(true); };
 
   const handleBannerGenerate = () => {
-    if (selectedFile) setCurrentView('site');
-    else if (prompt) setCurrentView('market');
+    if (selectedFile) { setCurrentView('site'); return; }
+    if (!prompt) return;
+    const lower = prompt.toLowerCase();
+    const floorKeywords = ['bhk', 'floor plan', 'floorplan', 'bedroom', 'house plan', 'cabin', 'villa', 'apartment', 'duplex', 'bungalow', 'penthouse', 'studio', 'flat', 'residence'];
+    const materialKeywords = ['material', 'cement', 'steel', 'brick', 'tile', 'paint', 'wood', 'marble', 'granite', 'plywood', 'sand', 'aggregate', 'rebar'];
+    if (floorKeywords.some(k => lower.includes(k))) setCurrentView('floor');
+    else if (materialKeywords.some(k => lower.includes(k))) setCurrentView('materials');
+    else setCurrentView('market');
   };
 
   const typeIcons: any = { 'site-analysis': Building2, masterplan: Map, 'floor-plan': LayoutGrid, 'material-search': Package };
@@ -736,185 +1135,157 @@ function App() {
 
   return (
     <div className="app-container">
-      <Sidebar active={currentView} setActive={setCurrentView} user={user}
-        onLogout={() => { localStorage.removeItem('token'); setUser(null); setMyGenerations([]); }}
-        onLoginClick={openLogin} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} />
+      <div className="body-layout">
+        <Sidebar active={currentView} setActive={setCurrentView} user={user} onLogout={() => { localStorage.removeItem('token'); setUser(null); setMyGenerations([]); }} onLoginClick={openLogin} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} />
 
-      <div className="main-layout">
-        <div className="scroll-content">
+        <div className="main-content">
           <AnimatePresence mode="wait">
-            <motion.div key={currentView} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} style={{ width: '100%', height: '100%' }}>
+            <motion.div key={currentView} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} style={{ width: '100%', height: '100%', paddingBottom: '40px' }}>
 
               {currentView === 'home' && (
                 <>
-                  {/* Banner */}
-                  <div className="banner">
-                    <div className="banner-bg">
-                      <div className="banner-content">
-                        <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>Builtattic Platform</motion.h1>
+                  <div className="hero-section">
+                    <div className="hero-bg" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop), linear-gradient(135deg, #1e3a8a, #8b5cf6, #d946ef)' }}></div>
+                    <div className="hero-content">
+                      <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>Create something new</motion.h1>
+                      
+                      <motion.div className="firefly-prompt" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                        <div className="prompt-header">
+                          <span>Prompt</span>
+                          <p>Describe what you want to generate or analyze</p>
+                        </div>
+                        <div className="prompt-input-row">
+                          <input type="text" placeholder="E.g. A modern 3BHK floor plan, or analyze construction site..." value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleBannerGenerate()} />
+                          <button className="firefly-generate-btn" onClick={handleBannerGenerate} disabled={!prompt}>
+                            <Sparkles size={16} /> Generate
+                          </button>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </div>
 
-                        {stats && (
-                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="stats-bar">
-                            <div className="stat-chip"><Users size={14} /><span>{stats.totalUsers} Users</span></div>
-                            <div className="stat-chip"><Building2 size={14} /><span>{stats.totalDesigns} Designs</span></div>
-                            <div className="stat-chip"><ShoppingBag size={14} /><span>{stats.totalOrders} Orders</span></div>
-                            <div className="stat-chip"><MessageCircle size={14} /><span>{stats.totalChats} Chats</span></div>
-                            <div className="stat-chip"><TrendingUp size={14} /><span>{stats.associates} Architects</span></div>
-                          </motion.div>
-                        )}
+                  <div className="firefly-categories">
+                    {['⭐ Featured', '✨ Generative AI', '🏢 Commercial', '🏠 Residential', '📐 Floor Plans', '📦 Materials'].map((cat, i) => (
+                      <div key={i} className={`firefly-chip ${i === 0 ? 'active' : ''}`}>{cat}</div>
+                    ))}
+                  </div>
 
-                        <div className="prompt-container" style={{ background: 'var(--bg-card)', padding: '20px 24px', borderRadius: '16px', border: '1px solid var(--border-color)', marginTop: '24px' }}>
-                          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prompt</div>
-                          <div className="input-with-upload" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '16px' }}>
-                            <input type="text" placeholder="Describe your architectural or construction needs..." value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleBannerGenerate()} style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '16px', outline: 'none' }} />
-                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                              <Upload size={20} color="var(--text-secondary)" />
-                              <input type="file" accept="image/*" onChange={e => e.target.files && setSelectedFile(e.target.files[0])} style={{ display: 'none' }} />
-                            </label>
+                  <div className="firefly-grid">
+                    <motion.div className="firefly-card" whileHover={{ y: -4 }} onClick={() => setCurrentView('site')}>
+                      <img src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=400&h=250&fit=crop" alt="Site Analyzer" />
+                      <div className="card-body">
+                        <h4>Analyze a construction site</h4>
+                        <p>Upload a photo for AI-powered stage detection and valuation.</p>
+                        <span className="card-badge"><Building2 size={12}/> Builtattic AI</span>
+                      </div>
+                    </motion.div>
+
+                    <motion.div className="firefly-card" whileHover={{ y: -4 }} onClick={() => setCurrentView('floor')}>
+                      <img src="https://images.unsplash.com/photo-1574362848149-11496d93a7c7?w=400&h=250&fit=crop" alt="Floor Plans" />
+                      <div className="card-body">
+                        <h4>Generate a new floor plan</h4>
+                        <p>Create AI floor plan variants with detailed cost estimates.</p>
+                        <span className="card-badge"><LayoutGrid size={12}/> Builtattic AI</span>
+                      </div>
+                    </motion.div>
+
+                    <motion.div className="firefly-card" whileHover={{ y: -4 }} onClick={() => setCurrentView('market')}>
+                      <img src="https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=250&fit=crop" alt="Masterplan" />
+                      <div className="card-body">
+                        <h4>Explore masterplan hotspots</h4>
+                        <p>Discover AI-identified high-growth real estate hotspots.</p>
+                        <span className="card-badge"><Map size={12}/> Builtattic AI</span>
+                      </div>
+                    </motion.div>
+
+                    <motion.div className="firefly-card" whileHover={{ y: -4 }} onClick={() => setCurrentView('materials')}>
+                      <img src="https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=250&fit=crop" alt="Materials" />
+                      <div className="card-body">
+                        <h4>Find construction materials</h4>
+                        <p>AI-sourced supplier data and accurate material pricing.</p>
+                        <span className="card-badge"><Package size={12}/> Builtattic AI</span>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  <div style={{ margin: '0 24px 48px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '20px', fontWeight: 600 }}>Live from Builtattic Marketplace</h3>
+                      <div className="firefly-categories" style={{ margin: 0, gap: '8px' }}>
+                        {['All', 'Residential', 'Commercial', 'Institutional', 'Recreational'].map(t => (
+                          <div key={t} className={`firefly-chip ${activeTab === t ? 'active' : ''}`} onClick={() => setActiveTab(t)} style={{ padding: '6px 12px', fontSize: '11px' }}>
+                            {t}
                           </div>
-                          {selectedFile && <div style={{ fontSize: '12px', color: 'var(--accent-primary)', marginBottom: '16px' }}>Selected: {selectedFile.name}</div>}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', gap: '12px', fontSize: '13px', fontWeight: 600 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', backgroundColor: 'var(--border-color)', color: 'var(--text-primary)' }}><Sparkles size={14} color="var(--accent-primary)" /> PRO AEC LLM</div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <motion.div 
+                      className="firefly-grid" style={{ padding: 0 }}
+                      variants={{
+                        hidden: { opacity: 0 },
+                        show: {
+                          opacity: 1,
+                          transition: { staggerChildren: 0.1 }
+                        }
+                      }}
+                      initial="hidden"
+                      animate="show"
+                      key={activeTab} // re-trigger animation on tab change
+                    >
+                      {designs.slice(0, 8).map((d: any) => (
+                        <motion.div 
+                          key={d._id} 
+                          className="firefly-card" 
+                          whileHover={{ y: -6, scale: 1.02 }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                          variants={{
+                            hidden: { opacity: 0, y: 20 },
+                            show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+                          }}
+                          onClick={() => setSelectedDesign(d)}
+                        >
+                          {d.thumbnail ? (
+                            <img src={d.thumbnail} alt={d.title} onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1503387762-592dea58ef21?w=400&h=200&fit=crop'; }} />
+                          ) : (
+                            <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
+                              <Building2 size={28} color="var(--accent-primary)" />
                             </div>
-                            <button className="generate-btn" onClick={handleBannerGenerate} disabled={!selectedFile && !prompt} style={{ padding: '10px 24px', borderRadius: '8px', backgroundColor: 'var(--text-primary)', color: 'var(--bg-main)', fontWeight: 600 }}><Sparkles size={16} /> Generate</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="category-tabs">
-                      {['All', 'Residential', 'Commercial', 'Institutional', 'Recreational'].map(t => (
-                        <div key={t} className={`tab ${activeTab === t ? 'active' : ''}`} onClick={() => handleTabChange(t)}>{t}</div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Feature Cards */}
-                  <div className="grid-container">
-                    <motion.div className="feature-card" whileHover={{ y: -5 }} onClick={() => setCurrentView('site')}>
-                      <div className="card-image" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1503387762-592dea58ef21?w=400&h=250&fit=crop)' }} />
-                      <div className="card-info">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                          <div style={{ width: '32px', height: '32px', background: '#0066ff', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 size={16} color="white" /></div>
-                          <h3 style={{ margin: 0, fontSize: '16px' }}>Site Analyzer</h3>
-                        </div>
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>Upload construction images for AI-powered stage detection & valuation.</p>
-                      </div>
-                    </motion.div>
-                    <motion.div className="feature-card" whileHover={{ y: -5 }} onClick={() => setCurrentView('market')}>
-                      <div className="card-image" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=250&fit=crop)' }} />
-                      <div className="card-info">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                          <div style={{ width: '32px', height: '32px', background: '#7c3aed', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Map size={16} color="white" /></div>
-                          <h3 style={{ margin: 0, fontSize: '16px' }}>Masterplan Explorer</h3>
-                        </div>
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>Discover AI-identified high-growth real estate hotspots.</p>
-                      </div>
-                    </motion.div>
-                    <motion.div className="feature-card" whileHover={{ y: -5 }} onClick={() => setCurrentView('floor')}>
-                      <div className="card-image" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1503387837-b159950e89ef?w=400&h=250&fit=crop)' }} />
-                      <div className="card-info">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                          <div style={{ width: '32px', height: '32px', background: '#0891b2', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LayoutGrid size={16} color="white" /></div>
-                          <h3 style={{ margin: 0, fontSize: '16px' }}>Floor Plan Insights</h3>
-                        </div>
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>Generate AI floor plan variants with cost estimates.</p>
-                      </div>
-                    </motion.div>
-                    <motion.div className="feature-card" whileHover={{ y: -5 }} onClick={() => setCurrentView('materials')}>
-                      <div className="card-image" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=250&fit=crop)' }} />
-                      <div className="card-info">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                          <div style={{ width: '32px', height: '32px', background: '#d97706', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package size={16} color="white" /></div>
-                          <h3 style={{ margin: 0, fontSize: '16px' }}>Material Finder</h3>
-                        </div>
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>AI-sourced supplier data and material pricing.</p>
-                      </div>
-                    </motion.div>
-                    <motion.div className="feature-card" whileHover={{ y: -5 }} onClick={() => setCurrentView('projects')}>
-                      <div className="card-image" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=250&fit=crop)' }} />
-                      <div className="card-info">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                          <div style={{ width: '32px', height: '32px', background: '#059669', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Briefcase size={16} color="white" /></div>
-                          <h3 style={{ margin: 0, fontSize: '16px' }}>My Dashboard</h3>
-                        </div>
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>Your designs, orders, and AI analyses in one place.</p>
-                      </div>
-                    </motion.div>
-                  </div>
-
-                  {/* Real Designs from DB */}
-                  {designs.length > 0 && (
-                    <div style={{ padding: '0 48px 32px' }}>
-                      <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>Published Designs</h3>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
-                        {designs.map((d: any, i: number) => (
-                          <motion.div key={d._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-                            className="gallery-card" onClick={() => setSelectedDesign(d)}>
-                            {d.thumbnail ? (
-                              <img src={d.thumbnail} alt={d.title} className="gallery-thumb" onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1503387762-592dea58ef21?w=400&h=200&fit=crop'; }} />
+                          )}
+                          <div className="card-body">
+                            <h4 style={{ fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: '0 0 4px' }}>{d.title}</h4>
+                            
+                            {d.totalPrice != null && d.totalPrice > 0 ? (
+                              <p style={{ color: 'var(--accent-primary)', fontWeight: 700, fontSize: '15px', margin: '4px 0 8px' }}>
+                                ₹{d.totalPrice.toLocaleString()}
+                              </p>
                             ) : (
-                              <div className="gallery-thumb-placeholder" style={{ background: 'linear-gradient(135deg, #0066ff22, #0066ff44)' }}><Building2 size={28} color="#0066ff" /></div>
+                              <p style={{ color: 'var(--text-secondary)', fontSize: '12px', margin: '4px 0 8px' }}>
+                                {d.specifications?.area ? `${d.specifications.area} sq ft` : 'Custom Design'}
+                              </p>
                             )}
-                            <div style={{ padding: '14px' }}>
-                              <h4 style={{ margin: '0 0 4px', fontSize: '15px' }}>{d.title}</h4>
-                              <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                                <span className="detail-badge badge-blue" style={{ fontSize: '11px' }}>{d.category}</span>
-                                {d.style && <span className="detail-badge" style={{ fontSize: '11px', background: 'var(--bg-main)', border: '1px solid var(--border-color)' }}>{d.style}</span>}
-                              </div>
-                              {d.specifications?.area && <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 4px' }}>{d.specifications.area} sq ft {d.specifications.bedrooms ? `| ${d.specifications.bedrooms} BHK` : ''}</p>}
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span className="card-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '3px 6px', fontSize: '10px' }}>{d.category}</span>
+                              
                               {d.creator && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   {d.creator.avatar ? (
                                     <img src={d.creator.avatar} alt="" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} onError={(e: any) => { e.target.style.display = 'none'; }} />
                                   ) : (
-                                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 700 }}>{d.creator.name?.charAt(0)}</div>
+                                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 700 }}>
+                                      {d.creator.name?.charAt(0)}
+                                    </div>
                                   )}
-                                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{d.creator.name}</span>
+                                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{d.creator.name?.split(' ')[0]}</span>
                                 </div>
                               )}
                             </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Associates / Architects */}
-                  {associates.length > 0 && (
-                    <div style={{ padding: '0 48px 100px' }}>
-                      <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>Featured Architects</h3>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
-                        {associates.map((a: any, i: number) => (
-                          <motion.div key={a._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-                            style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                              {a.avatar ? (
-                                <img src={a.avatar} alt="" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} onError={(e: any) => { e.target.style.display = 'none'; }} />
-                              ) : (
-                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700 }}>{a.name?.charAt(0)}</div>
-                              )}
-                              <div>
-                                <strong style={{ fontSize: '14px' }}>{a.name}</strong>
-                                {a.plan === 'pro' && <span className="detail-badge badge-blue" style={{ fontSize: '10px', marginLeft: '6px' }}>PRO</span>}
-                                {a.rating?.average > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}><Star size={12} color="#f59e0b" fill="#f59e0b" /><span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{a.rating.average}</span></div>}
-                              </div>
-                            </div>
-                            {a.specializations?.length > 0 && (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
-                                {a.specializations.slice(0, 3).map((s: string, si: number) => (
-                                  <span key={si} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>{s}</span>
-                                ))}
-                              </div>
-                            )}
-                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>{a.bio?.substring(0, 80)}{a.bio?.length > 80 ? '...' : ''}</p>
-                            {a.totalViews > 0 && <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px' }}><Eye size={11} /> {a.totalViews} views</p>}
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  </div>
                 </>
               )}
 
@@ -926,42 +1297,22 @@ function App() {
             </motion.div>
           </AnimatePresence>
         </div>
-      </div>
 
-      {/* Right Panel */}
-      <div className="right-panel">
-        <div className="promo-card">
-          <div className="promo-logo">BA</div>
-          <h4 style={{ margin: '0 0 8px', fontSize: '16px' }}>
-            {user ? `Welcome, ${user.name}` : 'Builtattic Hub'}
-          </h4>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.5 }}>
-            {user ? `${user.role} | ${user.plan} plan` : 'Sign in to save analyses and track projects.'}
-          </p>
-          {user?.avatar && <img src={user.avatar} alt="" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px' }} onError={(e: any) => { e.target.style.display = 'none'; }} />}
-          {!user && <button className="generate-btn" style={{ width: '100%', justifyContent: 'center' }} onClick={openLogin}><LogIn size={14} /> Get Started</button>}
-        </div>
-
-        <div style={{ marginTop: '16px', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <h3 className="right-panel-header" style={{ margin: '0 0 16px' }}>
-            {user ? 'My Recent Activity' : 'Recent Files'}
-          </h3>
-
+        <div className="right-panel">
+          <h3>Recent files</h3>
           {user && myGenerations.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'auto', flex: 1 }}>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
               {myGenerations.map((gen: any) => {
                 const Icon = typeIcons[gen.type] || FileText;
                 const color = typeColors[gen.type] || '#0066ff';
                 return (
-                  <div key={gen._id} className="recent-gen-item">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '36px', height: '36px', background: `${color}15`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon size={16} color={color} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{gen.title}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{timeAgo(gen.createdAt)}</div>
-                      </div>
+                  <div key={gen._id} className="recent-gen-item" onClick={() => setCurrentView('projects')}>
+                    <div style={{ width: '32px', height: '32px', background: `${color}15`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon size={14} color={color} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{gen.title}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{timeAgo(gen.createdAt)}</div>
                     </div>
                   </div>
                 );
@@ -969,12 +1320,11 @@ function App() {
             </div>
           ) : (
             <div className="recent-files-empty">
-              <FileText size={32} style={{ color: '#9ca3af', marginBottom: '16px' }} />
-              <p>No recent activity</p>
-              <span>{user ? 'Your AI analyses will appear here.' : 'Login to see your saved work.'}</span>
-              <button className="generate-btn" style={{ marginTop: '24px', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', fontSize: '13px', padding: '8px 16px' }}
-                onClick={() => user ? setCurrentView('site') : openLogin()}>
-                {user ? <><Upload size={14} /> Analyze</> : <><LogIn size={14} /> Login</>}
+              <FileText size={32} style={{ color: 'var(--text-secondary)', marginBottom: '16px' }} />
+              <p>No recent files</p>
+              <span>Files you save or upload will appear here.</span>
+              <button className="upload-btn" onClick={() => setCurrentView('site')}>
+                <Upload size={14} /> Upload
               </button>
             </div>
           )}
@@ -983,7 +1333,7 @@ function App() {
 
       <AnimatePresence>
         {isAuthModalOpen && <AuthModal isLogin={isLoginView} setIsLogin={setIsLoginView} onClose={() => setIsAuthModalOpen(false)}
-          onAuthSuccess={(userData: any) => { setUser(userData); setIsAuthModalOpen(false); fetchMyGenerations(); fetchStats(); }} />}
+          onAuthSuccess={(userData: any) => { setUser(userData); setIsAuthModalOpen(false); fetchMyGenerations(); }} />}
       </AnimatePresence>
 
       <AnimatePresence>

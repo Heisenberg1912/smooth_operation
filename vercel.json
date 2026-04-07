@@ -1,13 +1,9 @@
 {
-  "experimentalServices": {
-    "frontend": {
-      "routePrefix": "/",
-      "framework": "vite"
-    },
-    "backend": {
-      "entrypoint": "api/index.cjs",
-      "routePrefix": "/api",
-      "framework": "express"
-    }
-  }
+  "framework": "vite",
+  "buildCommand": "tsc -b && vite build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

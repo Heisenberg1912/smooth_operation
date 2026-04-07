@@ -19,7 +19,12 @@ async function ensureDatabase() {
   }
 
   if (!connectPromise) {
-    connectPromise = mongoose.connect(process.env.MONGODB_URI, {
+    const mongoUri = process.env.MONGODB_URI_DIRECT || process.env.MONGODB_URI;
+    if (!mongoUri) {
+      throw new Error('Missing MONGODB_URI or MONGODB_URI_DIRECT');
+    }
+
+    connectPromise = mongoose.connect(mongoUri, {
       dbName: process.env.MONGODB_DB || 'Titiksha-builtattic'
     })
       .then(() => {
@@ -29,6 +34,9 @@ async function ensureDatabase() {
       .catch((err) => {
         connectPromise = null;
         console.error('MongoDB Connection Error:', err);
+        if (err?.syscall === 'querySrv' && !process.env.MONGODB_URI_DIRECT) {
+          console.error('MongoDB SRV lookup failed. Set MONGODB_URI_DIRECT to a non-SRV Atlas connection string to bypass DNS SRV resolution.');
+        }
         throw err;
       });
   }

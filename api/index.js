@@ -82,7 +82,7 @@ const optionalAuth = (req, res, next) => {
 
 // ─── Auth Endpoints (using existing users collection) ─────────────────────────
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/auth/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
@@ -118,7 +118,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await db().collection('users').findOne({ email: email.toLowerCase().trim() });
@@ -150,7 +150,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.get('/api/user/me', authenticateToken, async (req, res) => {
+app.get('/user/me', authenticateToken, async (req, res) => {
   try {
     const user = await db().collection('users').findOne(
       { _id: new mongoose.Types.ObjectId(req.user.userId) },
@@ -180,7 +180,7 @@ app.get('/api/user/me', authenticateToken, async (req, res) => {
 
 // ─── Platform Stats ───────────────────────────────────────────────────────────
 
-app.get('/api/stats', async (req, res) => {
+app.get('/stats', async (req, res) => {
   try {
     const [totalUsers, totalDesigns, totalOrders, totalUsages, totalMedia, totalChats] = await Promise.all([
       db().collection('users').countDocuments(),
@@ -215,7 +215,7 @@ app.get('/api/stats', async (req, res) => {
 
 // ─── Designs (public gallery from existing designs collection) ────────────────
 
-app.get('/api/designs', async (req, res) => {
+app.get('/designs', async (req, res) => {
   try {
     const { category, limit = 20 } = req.query;
     const filter = { status: 'published' };
@@ -267,7 +267,7 @@ app.get('/api/designs', async (req, res) => {
 });
 
 // Single design detail
-app.get('/api/designs/:id', async (req, res) => {
+app.get('/designs/:id', async (req, res) => {
   try {
     const design = await db().collection('designs').findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
     if (!design) return res.status(404).json({ error: 'Design not found' });
@@ -290,7 +290,7 @@ app.get('/api/designs/:id', async (req, res) => {
 
 // ─── Associates (architects/professionals) ────────────────────────────────────
 
-app.get('/api/associates', async (req, res) => {
+app.get('/associates', async (req, res) => {
   try {
     const { limit = 20 } = req.query;
     const associates = await db().collection('users').find(
@@ -327,7 +327,7 @@ app.get('/api/associates', async (req, res) => {
 
 // ─── User's own designs ───────────────────────────────────────────────────────
 
-app.get('/api/my/designs', authenticateToken, async (req, res) => {
+app.get('/my/designs', authenticateToken, async (req, res) => {
   try {
     const designs = await db().collection('designs').find({ userId: req.user.userId })
       .sort({ createdAt: -1 }).toArray();
@@ -344,7 +344,7 @@ app.get('/api/my/designs', authenticateToken, async (req, res) => {
 
 // ─── User's orders ────────────────────────────────────────────────────────────
 
-app.get('/api/my/orders', authenticateToken, async (req, res) => {
+app.get('/my/orders', authenticateToken, async (req, res) => {
   try {
     const orders = await db().collection('orders').find({
       $or: [
@@ -360,7 +360,7 @@ app.get('/api/my/orders', authenticateToken, async (req, res) => {
 
 // ─── User's generations (AI analyses) ─────────────────────────────────────────
 
-app.get('/api/my/generations', authenticateToken, async (req, res) => {
+app.get('/my/generations', authenticateToken, async (req, res) => {
   try {
     const { type, limit = 20 } = req.query;
     const filter = { userId: new mongoose.Types.ObjectId(req.user.userId) };
@@ -386,7 +386,7 @@ const upload = multer({
 
 // ─── Site Analyzer ────────────────────────────────────────────────────────────
 
-app.post('/api/analyze', optionalAuth, upload.single('image'), async (req, res) => {
+app.post('/analyze', optionalAuth, upload.single('image'), async (req, res) => {
   try {
     const { location, projectType, scale, note } = req.body;
     const image = req.file;
@@ -458,7 +458,7 @@ app.post('/api/analyze', optionalAuth, upload.single('image'), async (req, res) 
 
 // ─── Masterplan Explorer ──────────────────────────────────────────────────────
 
-app.post('/api/masterplan', optionalAuth, async (req, res) => {
+app.post('/masterplan', optionalAuth, async (req, res) => {
   try {
     const { city, country } = req.body;
     if (!city) return res.status(400).json({ error: 'City required' });
@@ -505,7 +505,7 @@ app.post('/api/masterplan', optionalAuth, async (req, res) => {
 
 // ─── Floor Plan Generator ─────────────────────────────────────────────────────
 
-app.post('/api/floorplan', optionalAuth, async (req, res) => {
+app.post('/floorplan', optionalAuth, async (req, res) => {
   try {
     const { bedrooms, budget, style, area, location } = req.body;
     const prompt = `
@@ -537,7 +537,7 @@ app.post('/api/floorplan', optionalAuth, async (req, res) => {
 
 // ─── Material Finder ──────────────────────────────────────────────────────────
 
-app.post('/api/materials', optionalAuth, async (req, res) => {
+app.post('/materials', optionalAuth, async (req, res) => {
   try {
     const { query, location, projectType } = req.body;
     const prompt = `

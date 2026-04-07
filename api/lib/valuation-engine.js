@@ -1,3 +1,5 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const tuning = require('../config/valuation-tuning.json');
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -62,7 +64,7 @@ function spreadForConfidence(confidence) {
   return 0.42;
 }
 
-function computeValuation(input) {
+export function computeValuation(input) {
   const warnings = [];
   const typology = input.categoryRow?.Typology ?? input.projectType ?? 'Residential';
   const marketClass = resolveTypologyClass(typology);
@@ -132,7 +134,7 @@ function computeValuation(input) {
 
     if (isHighHazard) {
       confidence -= tuning.confidence.highHazardPenalty;
-      warnings.push('Terrain and soil signals introduce added execution risk into the valuation band.');        
+      warnings.push('Terrain and soil signals introduce added execution risk into the valuation band.');
     }
     if (isLowHazard) confidence += tuning.confidence.lowHazardBonus;
 
@@ -165,7 +167,7 @@ function computeValuation(input) {
   const lowSide = tuning.haircuts.lowSideExtra;
   const highSide = tuning.haircuts.highSideExtra;
   const propertyBase = isCompleted ? grossPropertyValue : grossPropertyValue * completionFactor;
-  
+
   return {
     property: { low: Math.round(propertyBase * (1 - spread - lowSide)), high: Math.round(propertyBase * (1 + spread + highSide)) },
     land: { low: Math.round(grossLandValue * (1 - spread - lowSide)), high: Math.round(grossLandValue * (1 + spread + highSide)) },
@@ -177,5 +179,3 @@ function computeValuation(input) {
     }
   };
 }
-
-module.exports = { computeValuation };

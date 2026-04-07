@@ -1,12 +1,15 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const multer = require('multer');
-const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const { generateStructuredData } = require('./lib/gemini.cjs');
-const { computeValuation } = require('./lib/valuation-engine.cjs');
+import dns from 'dns';
+dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { generateStructuredData } from './lib/gemini.js';
+import { computeValuation } from './lib/valuation-engine.js';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -19,12 +22,7 @@ async function ensureDatabase() {
   }
 
   if (!connectPromise) {
-    const mongoUri = process.env.MONGODB_URI_DIRECT || process.env.MONGODB_URI;
-    if (!mongoUri) {
-      throw new Error('Missing MONGODB_URI or MONGODB_URI_DIRECT');
-    }
-
-    connectPromise = mongoose.connect(mongoUri, {
+    connectPromise = mongoose.connect(process.env.MONGODB_URI, {
       dbName: process.env.MONGODB_DB || 'Titiksha-builtattic'
     })
       .then(() => {
@@ -34,9 +32,6 @@ async function ensureDatabase() {
       .catch((err) => {
         connectPromise = null;
         console.error('MongoDB Connection Error:', err);
-        if (err?.syscall === 'querySrv' && !process.env.MONGODB_URI_DIRECT) {
-          console.error('MongoDB SRV lookup failed. Set MONGODB_URI_DIRECT to a non-SRV Atlas connection string to bypass DNS SRV resolution.');
-        }
         throw err;
       });
   }
@@ -572,9 +567,11 @@ app.post('/api/materials', optionalAuth, async (req, res) => {
   }
 });
 
-if (require.main === module) {
+const isDirectRun = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'));
+if (isDirectRun) {
   app.listen(port, () => {
     console.log(`Builtattic backend running on port ${port}`);
   });
 }
-module.exports = app;
+
+export default app;

@@ -1,9 +1,15 @@
 {
-  "framework": "vite",
-  "buildCommand": "tsc -b && vite build",
-  "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "experimentalServices": {
+    "frontend": {
+      "routePrefix": "/",
+      "framework": "vite"
+    },
+    "api": {
+      "entrypoint": "api",
+      "routePrefix": "/api",
+      "framework": "express",
+      "memory": 512,
+      "maxDuration": 30
+    }
+  }
 }

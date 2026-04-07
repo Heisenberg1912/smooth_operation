@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
+import MobileApp from './MobileApp';
 
 const API_URL = '/api';
 
@@ -1074,6 +1075,7 @@ function App() {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoginView, setIsLoginView] = useState(true);
   const [selectedDesign, setSelectedDesign] = useState<any>(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
@@ -1082,6 +1084,12 @@ function App() {
   });
 
   useEffect(() => { document.body.classList.toggle('dark', isDarkMode); localStorage.setItem('theme', isDarkMode ? 'dark' : 'light'); }, [isDarkMode]);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const [myGenerations, setMyGenerations] = useState<any[]>([]);
   const [designs, setDesigns] = useState<any[]>([]);
@@ -1129,6 +1137,34 @@ function App() {
 
   const typeIcons: any = { 'site-analysis': Building2, masterplan: Map, 'floor-plan': LayoutGrid, 'material-search': Package };
   const typeColors: any = { 'site-analysis': '#0066ff', masterplan: '#7c3aed', 'floor-plan': '#0891b2', 'material-search': '#d97706' };
+
+  if (isMobile) {
+    return (
+      <MobileApp 
+        user={user} 
+        onLoginClick={openLogin} 
+        onLogout={() => { localStorage.removeItem('token'); setUser(null); setMyGenerations([]); }}
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        prompt={prompt}
+        setPrompt={setPrompt}
+        handleGenerate={handleBannerGenerate}
+        designs={designs}
+        myGenerations={myGenerations}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        setSelectedDesign={setSelectedDesign}
+        isDarkMode={isDarkMode}
+        toggleTheme={() => setIsDarkMode(!isDarkMode)}
+      >
+        {currentView === 'site' && <SiteView user={user} onLoginClick={openLogin} onGenerated={refreshAll} />}
+        {currentView === 'market' && <MarketView user={user} onLoginClick={openLogin} onGenerated={refreshAll} />}
+        {currentView === 'floor' && <FloorView onGenerated={refreshAll} />}
+        {currentView === 'materials' && <MaterialsView onGenerated={refreshAll} />}
+        {currentView === 'projects' && <ProjectsView user={user} onLoginClick={openLogin} />}
+      </MobileApp>
+    );
+  }
 
   return (
     <div className="app-container">

@@ -24,6 +24,33 @@ const db = () => mongoose.connection.db;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  if (req.path !== '/api/index' || !req.query?.path) {
+    return next();
+  }
+
+  const routedPath = Array.isArray(req.query.path)
+    ? req.query.path.join('/')
+    : req.query.path;
+
+  const forwardedQuery = new URLSearchParams();
+  for (const [key, value] of Object.entries(req.query)) {
+    if (key === 'path' || value == null) continue;
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => forwardedQuery.append(key, String(item)));
+    } else {
+      forwardedQuery.append(key, String(value));
+    }
+  }
+
+  req.url = `/api/${routedPath}${forwardedQuery.size ? `?${forwardedQuery.toString()}` : ''}`;
+  req.originalUrl = req.url;
+  delete req._parsedUrl;
+  delete req._parsedOriginalUrl;
+
+  next();
+});
 
 // Auth Middleware
 const authenticateToken = (req, res, next) => {

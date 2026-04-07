@@ -1,13 +1,13 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "functions": {
-    "api/index.js": {
-      "memory": 512,
-      "maxDuration": 30
+  "experimentalServices": {
+    "frontend": {
+      "routePrefix": "/",
+      "framework": "vite"
+    },
+    "backend": {
+      "entrypoint": "api/index.js",
+      "routePrefix": "/api",
+      "framework": "express"
     }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" }
-  ]
+  }
 }

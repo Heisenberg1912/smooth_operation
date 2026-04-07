@@ -5,18 +5,36 @@ const multer = require('multer');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
 const { generateStructuredData } = require('./lib/gemini.cjs');
 const { computeValuation } = require('./lib/valuation-engine.cjs');
 
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI, {
-  dbName: process.env.MONGODB_DB || 'Titiksha-builtattic'
-}).then(() => console.log('MongoDB Connected'))
-  .catch(err => console.error('MongoDB Connection Error:', err));
+let connectPromise = null;
+
+async function ensureDatabase() {
+  if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+    return mongoose.connection.db;
+  }
+
+  if (!connectPromise) {
+    connectPromise = mongoose.connect(process.env.MONGODB_URI, {
+      dbName: process.env.MONGODB_DB || 'Titiksha-builtattic'
+    })
+      .then(() => {
+        console.log('MongoDB Connected');
+        return mongoose.connection.db;
+      })
+      .catch((err) => {
+        connectPromise = null;
+        console.error('MongoDB Connection Error:', err);
+        throw err;
+      });
+  }
+
+  return connectPromise;
+}
 
 // Raw DB accessor
 const db = () => mongoose.connection.db;
@@ -24,32 +42,13 @@ const db = () => mongoose.connection.db;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use((req, res, next) => {
-  if (req.path !== '/api/index' || !req.query?.path) {
-    return next();
+app.use(async (req, res, next) => {
+  try {
+    await ensureDatabase();
+    next();
+  } catch (error) {
+    res.status(500).json({ error: 'Database connection failed' });
   }
-
-  const routedPath = Array.isArray(req.query.path)
-    ? req.query.path.join('/')
-    : req.query.path;
-
-  const forwardedQuery = new URLSearchParams();
-  for (const [key, value] of Object.entries(req.query)) {
-    if (key === 'path' || value == null) continue;
-
-    if (Array.isArray(value)) {
-      value.forEach((item) => forwardedQuery.append(key, String(item)));
-    } else {
-      forwardedQuery.append(key, String(value));
-    }
-  }
-
-  req.url = `/api/${routedPath}${forwardedQuery.size ? `?${forwardedQuery.toString()}` : ''}`;
-  req.originalUrl = req.url;
-  delete req._parsedUrl;
-  delete req._parsedOriginalUrl;
-
-  next();
 });
 
 // Auth Middleware

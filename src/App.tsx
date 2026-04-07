@@ -53,10 +53,7 @@ const Sidebar = ({ active, setActive, user, onLogout, onLoginClick, isDarkMode, 
       <div className="sidebar-top">
         <div className="builtattic-logo-sidebar" onClick={() => setActive('home')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <img src="https://builtattic.com/assets/images/logo.png" alt="Builtattic" style={{ height: '36px' }} onError={(e: any) => { e.target.style.display = 'none'; }} />
-          <div style={{ lineHeight: 1.1 }}>
-            <span style={{ fontWeight: 700, fontSize: '15px' }}>Adobe</span><br/>
-            <span style={{ fontWeight: 400, fontSize: '15px' }}>Builtattic</span>
-          </div>
+          <span style={{ fontWeight: 700, fontSize: '18px' }}>Builtattic</span>
         </div>
 
         <div className="sidebar-search">

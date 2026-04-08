@@ -110,7 +110,7 @@ const MobileApp = ({
                       <div className="tool-icon" style={{ background: '#d97706' }}><Package size={20} color="white" /></div>
                       <span>Materials</span>
                     </div>
-                    <div className="tool-card-mini" onClick={() => window.top.location.href = 'https://www.builtattic.com/pages/chatbot'}>
+                    <div className="tool-card-mini" onClick={() => (window.top ?? window).location.href = 'https://www.builtattic.com/pages/chatbot'}>
                       <div className="tool-icon" style={{ background: '#10b981' }}><MessageSquare size={20} color="white" /></div>
                       <span>Chatbot</span>
                     </div>

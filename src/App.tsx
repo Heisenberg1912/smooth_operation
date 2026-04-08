@@ -3,7 +3,7 @@ import {
   Home, Search, Map, Package, LayoutGrid, Building2,
   Sparkles, Upload, X, LogIn, Moon, Sun, Briefcase, FileText,
   TrendingUp, CheckCircle2, Loader2,
-  Shield, AlertTriangle, ChevronDown, ChevronUp,
+  Shield, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, ChevronLeft,
   Ruler, Compass, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1076,7 +1076,7 @@ function App() {
   const [isLoginView, setIsLoginView] = useState(true);
   const [selectedDesign, setSelectedDesign] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved) return saved === 'dark';
@@ -1331,35 +1331,42 @@ function App() {
           </AnimatePresence>
         </div>
 
-        <div className="right-panel">
-          <h3>Recent files</h3>
-          {user && myGenerations.length > 0 ? (
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              {myGenerations.map((gen: any) => {
-                const Icon = typeIcons[gen.type] || FileText;
-                const color = typeColors[gen.type] || '#0066ff';
-                return (
-                  <div key={gen._id} className="recent-gen-item" onClick={() => setCurrentView('projects')}>
-                    <div style={{ width: '32px', height: '32px', background: `${color}15`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon size={14} color={color} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{gen.title}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{timeAgo(gen.createdAt)}</div>
-                    </div>
-                  </div>
-                );
-              })}
+        <div className={`right-panel ${isRightPanelOpen ? '' : 'collapsed'}`}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            {isRightPanelOpen && <h3 style={{ margin: 0 }}>Recent files</h3>}
+            <div onClick={() => setIsRightPanelOpen(!isRightPanelOpen)} style={{ cursor: 'pointer', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+              {isRightPanelOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
             </div>
-          ) : (
-            <div className="recent-files-empty">
-              <FileText size={32} style={{ color: 'var(--text-secondary)', marginBottom: '16px' }} />
-              <p>No recent files</p>
-              <span>Files you save or upload will appear here.</span>
-              <button className="upload-btn" onClick={() => setCurrentView('site')}>
-                <Upload size={14} /> Upload
-              </button>
-            </div>
+          </div>
+          {isRightPanelOpen && (
+            user && myGenerations.length > 0 ? (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {myGenerations.map((gen: any) => {
+                  const Icon = typeIcons[gen.type] || FileText;
+                  const color = typeColors[gen.type] || '#0066ff';
+                  return (
+                    <div key={gen._id} className="recent-gen-item" onClick={() => setCurrentView('projects')}>
+                      <div style={{ width: '32px', height: '32px', background: `${color}15`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon size={14} color={color} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{gen.title}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{timeAgo(gen.createdAt)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="recent-files-empty">
+                <FileText size={32} style={{ color: 'var(--text-secondary)', marginBottom: '16px' }} />
+                <p>No recent files</p>
+                <span>Files you save or upload will appear here.</span>
+                <button className="upload-btn" onClick={() => setCurrentView('site')}>
+                  <Upload size={14} /> Upload
+                </button>
+              </div>
+            )
           )}
         </div>
       </div>

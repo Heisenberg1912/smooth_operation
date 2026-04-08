@@ -1247,7 +1247,7 @@ function App() {
                       </div>
                     </motion.div>
 
-                    <motion.div className="firefly-card" whileHover={{ y: -4 }} onClick={() => window.location.href = 'https://www.builtattic.com/pages/chatbot'}>
+                    <motion.div className="firefly-card" whileHover={{ y: -4 }} onClick={() => window.top.location.href = 'https://www.builtattic.com/pages/chatbot'}>
                       <img src="https://images.unsplash.com/photo-1531746790731-6c087fecd65a?w=400&h=250&fit=crop" alt="Chatbot" />
                       <div className="card-body">
                         <h4>Chatbot</h4>
@@ -1409,6 +1409,10 @@ function App() {
       </AnimatePresence>
     </div>
   );
+}
+
+export default App;
+ );
 }
 
 export default App;

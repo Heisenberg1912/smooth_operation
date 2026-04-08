@@ -127,6 +127,30 @@
   flex-direction: column;
   padding: 24px;
   z-index: 100;
+  transition: width 0.3s ease, padding 0.3s ease;
+  overflow: hidden;
+}
+
+.right-panel.collapsed {
+  width: 64px;
+  padding: 24px 12px;
+}
+
+.toggle-right-sidebar {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.toggle-right-sidebar:hover {
+  background: var(--border-color);
+  color: var(--text-primary);
 }
 
 .right-panel h3 {
@@ -652,7 +676,7 @@
 
 .mobile-tools-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
 }
 

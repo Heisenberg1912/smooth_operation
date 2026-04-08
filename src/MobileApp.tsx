@@ -1,7 +1,7 @@
 import { 
   Home, Building2, LayoutGrid, Package, Map, 
   Sparkles, User, ChevronRight,
-  Clock, Briefcase, X, LogOut, Sun, Moon
+  Clock, Briefcase, X, LogOut, Sun, Moon, MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -55,7 +55,6 @@ const MobileApp = ({
       <header className="mobile-header">
         <div className="mobile-logo-group" onClick={() => setCurrentView('home')}>
           <img src="https://builtattic.com/assets/images/logo.png" alt="Builtattic" />
-          <span>Builtattic</span>
         </div>
         <div className="mobile-header-actions">
           <div className="mobile-profile-avatar" onClick={() => handleNavClick('profile')}>
@@ -110,6 +109,10 @@ const MobileApp = ({
                     <div className="tool-card-mini" onClick={() => setCurrentView('materials')}>
                       <div className="tool-icon" style={{ background: '#d97706' }}><Package size={20} color="white" /></div>
                       <span>Materials</span>
+                    </div>
+                    <div className="tool-card-mini" onClick={() => window.location.href = 'https://www.builtattic.com/pages/chatbot'}>
+                      <div className="tool-icon" style={{ background: '#10b981' }}><MessageSquare size={20} color="white" /></div>
+                      <span>Chatbot</span>
                     </div>
                   </div>
                 </section>

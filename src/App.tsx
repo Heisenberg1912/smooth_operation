@@ -4,7 +4,7 @@ import {
   Sparkles, Upload, X, LogIn, Moon, Sun, Briefcase, FileText,
   TrendingUp, CheckCircle2, Loader2,
   Shield, AlertTriangle, ChevronDown, ChevronUp,
-  Ruler, Compass, Download
+  Ruler, Compass, Download, Rocket, MessageSquare, PanelRightClose, PanelRightOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
@@ -44,6 +44,7 @@ const Sidebar = ({ active, setActive, user, onLogout, onLoginClick, isDarkMode, 
     { id: 'floor', icon: LayoutGrid, label: 'Floor Plans' },
     { id: 'materials', icon: Package, label: 'Materials' },
     { id: 'market', icon: Map, label: 'Masterplan' },
+    { id: 'chatbot', icon: MessageSquare, label: 'Chatbot' },
   ];
   const bottomItems = [
     { id: 'projects', icon: Briefcase, label: 'My Dashboard' },
@@ -54,7 +55,6 @@ const Sidebar = ({ active, setActive, user, onLogout, onLoginClick, isDarkMode, 
       <div className="sidebar-top">
         <div className="builtattic-logo-sidebar" onClick={() => setActive('home')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <img src="https://builtattic.com/assets/images/logo.png" alt="Builtattic" style={{ height: '36px' }} onError={(e: any) => { e.target.style.display = 'none'; }} />
-          <span style={{ fontWeight: 700, fontSize: '18px' }}>Builtattic</span>
         </div>
 
         <div className="sidebar-search">
@@ -64,7 +64,13 @@ const Sidebar = ({ active, setActive, user, onLogout, onLoginClick, isDarkMode, 
 
         <div className="sidebar-nav-group">
           {topItems.map(item => (
-            <div key={item.id} className={`nav-item-wide ${active === item.id ? 'active' : ''}`} onClick={() => setActive(item.id)}>
+            <div key={item.id} className={`nav-item-wide ${active === item.id ? 'active' : ''}`} onClick={() => {
+              if (item.id === 'chatbot') {
+                window.location.href = 'https://www.builtattic.com/pages/chatbot';
+              } else {
+                setActive(item.id);
+              }
+            }}>
               <item.icon size={18} />
               <span>{item.label}</span>
             </div>
@@ -1076,6 +1082,7 @@ function App() {
   const [isLoginView, setIsLoginView] = useState(true);
   const [selectedDesign, setSelectedDesign] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
@@ -1178,7 +1185,7 @@ function App() {
               {currentView === 'home' && (
                 <>
                   <div className="hero-section">
-                    <div className="hero-bg" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop), linear-gradient(135deg, #1e3a8a, #8b5cf6, #d946ef)' }}></div>
+                    <div className="hero-bg" style={{ backgroundImage: 'url(/banner.jpg)' }}></div>
                     <div className="hero-content">
                       <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>Create something new</motion.h1>
                       
@@ -1237,6 +1244,26 @@ function App() {
                         <h4>Find construction materials</h4>
                         <p>AI-sourced supplier data and accurate material pricing.</p>
                         <span className="card-badge"><Package size={12}/> Builtattic AI</span>
+                      </div>
+                    </motion.div>
+
+                    <motion.div className="firefly-card" whileHover={{ y: -4 }} onClick={() => window.location.href = 'https://www.builtattic.com/pages/chatbot'}>
+                      <img src="https://images.unsplash.com/photo-1531746790731-6c087fecd65a?w=400&h=250&fit=crop" alt="Chatbot" />
+                      <div className="card-body">
+                        <h4>Chatbot</h4>
+                        <p>Interact with our intelligent assistant for quick answers.</p>
+                        <span className="card-badge"><MessageSquare size={12}/> Builtattic AI</span>
+                      </div>
+                    </motion.div>
+
+                    <motion.div className="firefly-card" whileHover={{ y: -4 }}>
+                      <div style={{ height: '150px', background: 'linear-gradient(135deg, #1e1e24, #0f0f13)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Rocket size={48} color="#8b5cf6" opacity={0.5} />
+                      </div>
+                      <div className="card-body">
+                        <h4>More features coming soon</h4>
+                        <p>We're constantly building new AI tools for your workflow.</p>
+                        <span className="card-badge"><Rocket size={12}/> Coming Soon</span>
                       </div>
                     </motion.div>
                   </div>
@@ -1331,35 +1358,43 @@ function App() {
           </AnimatePresence>
         </div>
 
-        <div className="right-panel">
-          <h3>Recent files</h3>
-          {user && myGenerations.length > 0 ? (
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              {myGenerations.map((gen: any) => {
-                const Icon = typeIcons[gen.type] || FileText;
-                const color = typeColors[gen.type] || '#0066ff';
-                return (
-                  <div key={gen._id} className="recent-gen-item" onClick={() => setCurrentView('projects')}>
-                    <div style={{ width: '32px', height: '32px', background: `${color}15`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon size={14} color={color} />
+        <div className={`right-panel ${!isRightSidebarOpen ? 'collapsed' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            {isRightSidebarOpen && <h3 style={{ margin: 0 }}>Recent files</h3>}
+            <button className="toggle-right-sidebar" onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}>
+              {isRightSidebarOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+            </button>
+          </div>
+          
+          {isRightSidebarOpen && (
+            user && myGenerations.length > 0 ? (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {myGenerations.map((gen: any) => {
+                  const Icon = typeIcons[gen.type] || FileText;
+                  const color = typeColors[gen.type] || '#0066ff';
+                  return (
+                    <div key={gen._id} className="recent-gen-item" onClick={() => setCurrentView('projects')}>
+                      <div style={{ width: '32px', height: '32px', background: `${color}15`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon size={14} color={color} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{gen.title}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{timeAgo(gen.createdAt)}</div>
+                      </div>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{gen.title}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{timeAgo(gen.createdAt)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="recent-files-empty">
-              <FileText size={32} style={{ color: 'var(--text-secondary)', marginBottom: '16px' }} />
-              <p>No recent files</p>
-              <span>Files you save or upload will appear here.</span>
-              <button className="upload-btn" onClick={() => setCurrentView('site')}>
-                <Upload size={14} /> Upload
-              </button>
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="recent-files-empty">
+                <FileText size={32} style={{ color: 'var(--text-secondary)', marginBottom: '16px' }} />
+                <p>No recent files</p>
+                <span>Files you save or upload will appear here.</span>
+                <button className="upload-btn" onClick={() => setCurrentView('site')}>
+                  <Upload size={14} /> Upload
+                </button>
+              </div>
+            )
           )}
         </div>
       </div>

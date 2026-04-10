@@ -601,11 +601,229 @@
   padding-bottom: 80px;
 }
 
+/* Site Analyzer — desktop padding + two columns; mobile uses full width inside .mobile-main */
+.site-view {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding: 32px 48px;
+}
+
+.site-view-panels {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.site-view-upload-panel,
+.site-view-results-panel {
+  min-width: 340px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 767px) {
+  .site-view {
+    padding: 0;
+  }
+
+  .site-view-panels {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .site-view-upload-panel,
+  .site-view-results-panel {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .site-view-results-placeholder {
+    padding: 24px 16px !important;
+  }
+}
+
+.site-view-inline-fields {
+  display: flex;
+  gap: 12px;
+}
+
+@media (max-width: 430px) {
+  .site-view-inline-fields {
+    flex-direction: column;
+  }
+
+  .site-view-inline-fields select {
+    width: 100%;
+  }
+}
+
+/* Masterplan Explorer — mobile: no double horizontal padding; stack search row */
+.market-view {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding: 32px 48px;
+}
+
+.market-view h2 {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.market-view-search-card {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.market-view-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.market-view-search-row input {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.market-view-search-row select {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.market-view-explore-btn {
+  flex: 0 0 auto;
+}
+
+.market-view-hotspots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 767px) {
+  .market-view {
+    padding: 0;
+  }
+
+  .market-view-search-card {
+    padding: 16px !important;
+  }
+
+  .market-view-search-row {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .market-view-search-row input,
+  .market-view-search-row select,
+  .market-view-search-row .market-view-explore-btn {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .market-view-search-row .market-view-explore-btn {
+    justify-content: center;
+  }
+
+  .market-view-hotspots-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .market-view-empty {
+    padding: 32px 16px !important;
+  }
+}
+
+/* Material Finder — same mobile treatment as Masterplan */
+.materials-view {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding: 32px 48px;
+}
+
+.materials-view h2 {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.materials-view-search-card {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.materials-view-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 24px;
+}
+
+.materials-view-query-input {
+  flex: 1 1 140px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.materials-view-location-input {
+  flex: 0 1 150px;
+  min-width: 0;
+  width: 150px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.materials-view-search-btn {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 767px) {
+  .materials-view {
+    padding: 0;
+  }
+
+  .materials-view-search-card {
+    padding: 16px !important;
+  }
+
+  .materials-view-search-row {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .materials-view-query-input,
+  .materials-view-location-input,
+  .materials-view-search-btn {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .materials-view-search-btn {
+    justify-content: center;
+  }
+
+  .materials-view-empty {
+    padding: 24px 16px !important;
+  }
+}
 
 .mobile-main {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .mobile-hero {
@@ -787,6 +1005,43 @@
   color: var(--text-secondary);
 }
 
+.section-header--marketplace {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.marketplace-tab-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 0 6px;
+  scrollbar-width: none;
+  width: 100%;
+}
+
+.marketplace-tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.marketplace-tab-item {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
+.marketplace-tab-item--active {
+  color: var(--accent-primary);
+}
+
 .mobile-nav {
   position: fixed;
   bottom: 0;
@@ -899,4 +1154,84 @@
   color: white;
   border-color: rgba(255, 255, 255, 0.25);
   transform: translateY(-1px);
+}
+
+/* ─── Mobile narrow viewports (375–430px) ─────────────────────────────────── */
+
+@media (max-width: 430px) {
+  .mobile-main {
+    padding: 20px max(16px, env(safe-area-inset-left)) 28px max(16px, env(safe-area-inset-right));
+  }
+
+  .mobile-hero h1 {
+    font-size: clamp(22px, 5.5vw, 26px);
+    margin-bottom: 16px;
+  }
+
+  .mobile-prompt-box {
+    min-width: 0;
+  }
+
+  .mobile-prompt-box input {
+    flex: 1;
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .mobile-prompt-box button {
+    flex-shrink: 0;
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .mobile-tools-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px 10px;
+  }
+
+  .tool-card-mini {
+    min-width: 0;
+    text-align: center;
+  }
+
+  .tool-card-mini span {
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .tool-icon {
+    width: 46px;
+    height: 46px;
+  }
+
+  .mobile-horizontal-scroll {
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .activity-item {
+    min-width: 0;
+  }
+
+  .activity-details {
+    min-width: 0;
+  }
+
+  .activity-details p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 375px) {
+  .mobile-hero h1 {
+    font-size: 22px;
+  }
+
+  .tool-icon {
+    width: 44px;
+    height: 44px;
+  }
 }

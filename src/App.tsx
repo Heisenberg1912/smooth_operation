@@ -711,8 +711,9 @@ const FloorView = ({ onGenerated }: any) => {
         if (planIndex === 0) {
           const sid = genId || generationId;
           if (sid) {
-            blueprintImageCache[sid] = data.image;
+            blueprintImageCache[String(sid)] = data.image;
           }
+          // Re-fetch generations so the sidebar picks up the saved thumbnailUrl from MongoDB
           onGenerated?.();
         }
       }
@@ -1168,7 +1169,7 @@ const ProjectsView = ({ user, onLoginClick, onGenerationsCleared }: any) => {
                   {/* Thumbnail */}
                   {(() => {
                     const token = localStorage.getItem('token');
-                    const sessionImg = g._id ? blueprintImageCache[g._id] || null : null;
+                    const sessionImg = g._id ? blueprintImageCache[String(g._id)] || null : null;
                     const imgUrl = sessionImg
                       || (g.thumbnailUrl ? cloudinaryThumb(g.thumbnailUrl) : null)
                       || (g.hasImage ? `${API_URL}/my/generations/${g._id}/image?token=${token}` : null);
@@ -1202,7 +1203,7 @@ const ProjectsView = ({ user, onLoginClick, onGenerationsCleared }: any) => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {(() => {
-                        const sessionImg = g._id ? blueprintImageCache[g._id] || null : null;
+                        const sessionImg = g._id ? blueprintImageCache[String(g._id)] || null : null;
                         const hasAnyImage = g.hasImage || g.thumbnailUrl || sessionImg;
                         const previewUrl = sessionImg || getFullImageUrl(g);
                         const downloadUrl = sessionImg ? sessionImg : getDownloadUrl(g);
@@ -1699,7 +1700,7 @@ function App() {
                   const color = typeColors[gen.type] || '#0066ff';
                   const navTarget = typeNavTargets[gen.type] || 'projects';
                   const token = localStorage.getItem('token');
-                  const sessionImg = gen._id ? (blueprintImageCache[gen._id] || null) : null;
+                  const sessionImg = gen._id ? (blueprintImageCache[String(gen._id)] || null) : null;
                   const storedImageUrl = sessionImg || gen.thumbnailUrl || (gen.hasImage ? `${API_URL}/my/generations/${gen._id}/image?token=${token}` : null);
                   const fallbackThumb = typeThumbnails[gen.type];
                   return (

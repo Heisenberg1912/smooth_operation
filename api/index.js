@@ -405,7 +405,8 @@ app.get('/my/generations', authenticateToken, async (req, res) => {
       .limit(Number(limit))
       .toArray();
 
-    res.json(generations);
+    // Explicitly stringify _id so the frontend cache key always matches
+    res.json(generations.map(g => ({ ...g, _id: g._id.toString() })));
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch generations' });
   }
@@ -683,7 +684,7 @@ CRITICAL RULES:
       generationId = genResult.insertedId;
     }
 
-    res.json({ ...result, generationId });
+    res.json({ ...result, generationId: generationId ? generationId.toString() : null });
   } catch (error) {
     console.error('Floor plan error:', error);
     res.status(500).json({ error: 'Failed to generate floor plans' });
@@ -776,7 +777,20 @@ IMPORTANT: This is the "${variantName || 'Standard'}" variant — make the layou
             }
           );
         }
-      } catch (e) { console.error('Failed to save image to generation:', e); }
+      } catch (e) {
+        console.error('Failed to save image to generation:', e);
+        // Fallback: persist base64 in MongoDB so the image is accessible after reload
+        try {
+          const imageDataUri = `data:${imageMimeType};base64,${imageBase64}`;
+          await db().collection('generations').updateOne(
+            { _id: new mongoose.Types.ObjectId(req.body.generationId), userId: new mongoose.Types.ObjectId(req.user.userId) },
+            {
+              $set: { thumbnail: imageDataUri, hasImage: true },
+              $push: { images: { data: imageDataUri, label: variantName || 'Blueprint', createdAt: new Date() } }
+            }
+          );
+        } catch (e2) { console.error('Fallback save failed:', e2); }
+      }
     }
 
     res.json({

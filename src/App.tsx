@@ -13,6 +13,17 @@ import MobileApp from './MobileApp';
 
 const API_URL = '/api';
 
+const MARKETPLACE_VISIT_URLS: Record<string, string> = {
+  'Net-zero Agricultural Campus': 'https://www.builtattic.com/products/net-zero-agricultural-campus?variant=47358164926699',
+  'Ovular Semiconductor Manufacturing Campus': 'https://www.builtattic.com/products/ovular-semiconductor-manufacturing-campus?variant=47357540139243',
+  'Dark Tourism Memorial: Bhopal': 'https://www.builtattic.com/products/bhopal-gas-tragedy-memorial?variant=47358797349099',
+  'Courtyard Tech Campus': 'https://www.builtattic.com/products/it-office?variant=47358781849835',
+  'Circular Restro-Bar': 'https://www.builtattic.com/products/restaurant?variant=47342708621547',
+  'Terraced Mixed-Use Commercial Complex': 'https://www.builtattic.com/products/mixed-use-building?variant=47358731845867',
+  'Riverside Office': 'https://www.builtattic.com/products/riverside-office?variant=47356819374315',
+  'Tropical Row House': 'https://www.builtattic.com/products/tropical-row-house?variant=47358808850667',
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(date: string | Date) {
@@ -176,6 +187,7 @@ const DesignDetail = ({ design, onClose }: { design: any; onClose: () => void })
   if (!design) return null;
 
   const images = design.images || (design.thumbnail ? [design.thumbnail] : []);
+  const visitUrl = MARKETPLACE_VISIT_URLS[design.title];
 
   return (
     <div className="auth-modal-overlay" onClick={onClose}>
@@ -270,6 +282,16 @@ const DesignDetail = ({ design, onClose }: { design: any; onClose: () => void })
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginTop: '16px', maxHeight: '150px', overflow: 'auto' }}>
             {design.description}
           </p>
+        )}
+
+        {visitUrl && (
+          <button
+            className="generate-btn"
+            style={{ width: '100%', justifyContent: 'center', marginTop: '16px' }}
+            onClick={() => window.open(visitUrl, '_blank', 'noopener,noreferrer')}
+          >
+            Visit
+          </button>
         )}
       </motion.div>
     </div>

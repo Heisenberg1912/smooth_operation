@@ -13,6 +13,10 @@ import MobileApp from './MobileApp';
 
 const API_URL = '/api';
 
+// Module-level cache: generationId → image data-URL.
+// Lives for the entire browser session (until page refresh). No size limit.
+const blueprintImageCache: Record<string, string> = {};
+
 const MARKETPLACE_VISIT_URLS: Record<string, string> = {
   'Net-zero Agricultural Campus': 'https://www.builtattic.com/products/net-zero-agricultural-campus?variant=47358164926699',
   'Ovular Semiconductor Manufacturing Campus': 'https://www.builtattic.com/products/ovular-semiconductor-manufacturing-campus?variant=47357540139243',
@@ -709,7 +713,7 @@ const FloorView = ({ onGenerated }: any) => {
         if (planIndex === 0) {
           const sid = genId || generationId;
           if (sid) {
-            try { sessionStorage.setItem(`blueprint_${sid}`, data.image); } catch (_) {}
+            blueprintImageCache[sid] = data.image;
           }
           onGenerated?.();
         }
@@ -1166,7 +1170,7 @@ const ProjectsView = ({ user, onLoginClick, onGenerationsCleared }: any) => {
                   {/* Thumbnail */}
                   {(() => {
                     const token = localStorage.getItem('token');
-                    const sessionImg = g._id ? sessionStorage.getItem(`blueprint_${g._id}`) : null;
+                    const sessionImg = g._id ? blueprintImageCache[g._id] || null : null;
                     const imgUrl = sessionImg
                       || (g.thumbnailUrl ? cloudinaryThumb(g.thumbnailUrl) : null)
                       || (g.hasImage ? `${API_URL}/my/generations/${g._id}/image?token=${token}` : null);
@@ -1200,7 +1204,7 @@ const ProjectsView = ({ user, onLoginClick, onGenerationsCleared }: any) => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {(() => {
-                        const sessionImg = g._id ? sessionStorage.getItem(`blueprint_${g._id}`) : null;
+                        const sessionImg = g._id ? blueprintImageCache[g._id] || null : null;
                         const hasAnyImage = g.hasImage || g.thumbnailUrl || sessionImg;
                         const previewUrl = sessionImg || getFullImageUrl(g);
                         const downloadUrl = sessionImg ? sessionImg : getDownloadUrl(g);
@@ -1697,7 +1701,7 @@ function App() {
                   const color = typeColors[gen.type] || '#0066ff';
                   const navTarget = typeNavTargets[gen.type] || 'projects';
                   const token = localStorage.getItem('token');
-                  const sessionImg = gen._id ? sessionStorage.getItem(`blueprint_${gen._id}`) : null;
+                  const sessionImg = gen._id ? (blueprintImageCache[gen._id] || null) : null;
                   const storedImageUrl = sessionImg || gen.thumbnailUrl || (gen.hasImage ? `${API_URL}/my/generations/${gen._id}/image?token=${token}` : null);
                   const fallbackThumb = typeThumbnails[gen.type];
                   return (

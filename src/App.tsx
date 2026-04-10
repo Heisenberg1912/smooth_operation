@@ -1073,8 +1073,6 @@ const ProjectsView = ({ user, onLoginClick, onGenerationsCleared }: any) => {
     url.includes('/upload/') && !url.includes('/upload/w_')
       ? url.replace('/upload/', '/upload/w_400,h_300,c_fill,q_auto,f_auto/')
       : url;
-  const getImageUrl = (g: any) =>
-    g.thumbnailUrl ? cloudinaryThumb(g.thumbnailUrl) : `${API_URL}/my/generations/${g._id}/image?token=${token}`;
   const getFullImageUrl = (g: any) =>
     g.thumbnailUrl || `${API_URL}/my/generations/${g._id}/image?token=${token}`;
   const getDownloadUrl = (g: any) =>
@@ -1160,23 +1158,35 @@ const ProjectsView = ({ user, onLoginClick, onGenerationsCleared }: any) => {
               return (
                 <div key={g._id} style={{ background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden', display: 'flex', alignItems: 'stretch' }}>
                   {/* Thumbnail */}
-                  {g.hasImage ? (
-                    <div style={{ width: '120px', minHeight: '80px', flexShrink: 0, cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
-                      onClick={() => setPreviewImage({ url: getFullImageUrl(g), title: g.title, downloadUrl: getDownloadUrl(g) })}>
-                      <img src={getImageUrl(g)} alt={g.title}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        onError={(e: any) => { e.target.style.display = 'none'; }} />
-                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s' }}
-                        onMouseEnter={(e: any) => e.currentTarget.style.opacity = '1'}
-                        onMouseLeave={(e: any) => e.currentTarget.style.opacity = '0'}>
-                        <Eye size={20} color="white" />
+                  {(() => {
+                    const token = localStorage.getItem('token');
+                    const imgUrl = g.thumbnailUrl
+                      ? cloudinaryThumb(g.thumbnailUrl)
+                      : g.hasImage
+                      ? `${API_URL}/my/generations/${g._id}/image?token=${token}`
+                      : null;
+                    return (
+                      <div style={{ width: '120px', minHeight: '80px', flexShrink: 0, position: 'relative', overflow: 'hidden', cursor: imgUrl ? 'pointer' : 'default' }}
+                        onClick={() => imgUrl && setPreviewImage({ url: getFullImageUrl(g), title: g.title, downloadUrl: getDownloadUrl(g) })}>
+                        {imgUrl ? (
+                          <>
+                            <img src={imgUrl} alt={g.title}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e: any) => { e.target.style.display = 'none'; }} />
+                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s' }}
+                              onMouseEnter={(e: any) => e.currentTarget.style.opacity = '1'}
+                              onMouseLeave={(e: any) => e.currentTarget.style.opacity = '0'}>
+                              <Eye size={20} color="white" />
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${color}08` }}>
+                            <Icon size={24} color={color} />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ) : (
-                    <div style={{ width: '80px', minHeight: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${color}08` }}>
-                      <Icon size={24} color={color} />
-                    </div>
-                  )}
+                    );
+                  })()}
                   {/* Content */}
                   <div style={{ flex: 1, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ flex: 1 }}>

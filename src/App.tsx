@@ -1257,6 +1257,48 @@ function App() {
   const [prompt, setPrompt] = useState('');
   const selectedFile = null;
 
+  const [quickGen, setQuickGen] = useState<{ loading: boolean; result: any; tool: string; error: string } | null>(null);
+
+  // ── Dedicated tool links — replace '#' with your actual URLs ──────────────
+  const TOOL_LINKS: Record<string, string> = {
+    site:      'https://www.builtattic.com/pages/vision',
+    floor:     'https://www.builtattic.com/pages/vitruviai',
+    market:    'https://www.builtattic.com/collections/design-studio?page=2',
+    materials: 'https://www.builtattic.com/pages/vision',
+  };
+  const TOOL_LABELS: Record<string, string> = {
+    site:      'Site Analyzer',
+    floor:     'Floor Plans',
+    market:    'Masterplan Explorer',
+    materials: 'Material Finder',
+  };
+
+  const handleQuickGenerate = async (tool: string) => {
+    if (!prompt.trim()) { setCurrentView(tool); return; }
+    setQuickGen({ loading: true, result: null, tool, error: '' });
+    try {
+      let result: any;
+      if (tool === 'market') {
+        const res = await fetch(`${API_URL}/masterplan`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ city: prompt, country: 'India' }) });
+        result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Generation failed');
+      } else if (tool === 'materials') {
+        const res = await fetch(`${API_URL}/materials`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ query: prompt, location: 'India' }) });
+        result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Generation failed');
+      } else if (tool === 'floor') {
+        const res = await fetch(`${API_URL}/floorplan`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ bedrooms: 3, budget: '50-80 Lakhs', style: 'Modern', area: '1200 sqft', location: prompt, plotWidth: 30, plotLength: 40, floors: 1, facing: 'North' }) });
+        result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Generation failed');
+      } else {
+        result = { _siteMsg: true };
+      }
+      setQuickGen({ loading: false, result, tool, error: '' });
+    } catch (err: any) {
+      setQuickGen({ loading: false, result: null, tool, error: err.message });
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -1307,9 +1349,9 @@ function App() {
     if (selectedFile) { setCurrentView('site'); return; }
     if (!prompt) return;
     const lower = prompt.toLowerCase();
-    const floorKeywords = ['bhk', 'floor plan', 'floorplan', 'bedroom', 'house plan', 'cabin', 'villa', 'apartment', 'duplex', 'bungalow', 'penthouse', 'studio', 'flat', 'residence'];
-    const materialKeywords = ['material', 'cement', 'steel', 'brick', 'tile', 'paint', 'wood', 'marble', 'granite', 'plywood', 'sand', 'aggregate', 'rebar'];
-    const siteKeywords = ['site', 'construction', 'analyze', 'analysis', 'building', 'progress', 'stage'];
+    const floorKeywords = ['bhk', 'floor plan', 'floorplan', 'bedroom', 'house plan', 'cabin', 'villa', 'apartment', 'duplex', 'bungalow', 'penthouse', 'studio', 'flat', 'residence', 'layout', 'room', 'plan', 'design', 'home', 'house', 'property', 'plot', 'sqft', 'sq ft', 'square feet', 'square foot', 'floor', 'storey', 'story', 'floors', 'balcony', 'kitchen', 'bathroom', 'living', 'dining', 'garage', 'office', 'space', 'interior', 'architecture', 'blueprint', 'vastu', 'modern', 'contemporary', 'townhouse', 'row house', 'farmhouse', 'cottage', 'mansion'];
+    const materialKeywords = ['material', 'cement', 'steel', 'brick', 'tile', 'paint', 'wood', 'marble', 'granite', 'plywood', 'sand', 'aggregate', 'rebar', 'concrete', 'glass', 'iron', 'aluminium', 'aluminum', 'copper', 'pvc', 'pipe', 'flooring', 'roofing', 'insulation', 'waterproof', 'adhesive', 'grout', 'plaster', 'gypsum', 'stone', 'limestone', 'slate', 'ceramic', 'vinyl', 'laminate', 'hardwood', 'softwood', 'mdf', 'ply', 'block', 'cost', 'price', 'rate', 'buy', 'supplier', 'vendor', 'supply', 'estimate', 'budget', 'cheap', 'affordable', 'best'];
+    const siteKeywords = ['site', 'construction', 'analyze', 'analysis', 'building', 'progress', 'stage', 'photo', 'image', 'upload', 'detect', 'inspect', 'inspection', 'survey', 'foundation', 'structure', 'structural', 'under construction', 'demolish', 'demolition', 'contractor', 'worker', 'crane', 'excavation', 'excavate', 'scaffold', 'scaffolding', 'slab', 'column', 'beam', 'footing', 'retaining', 'wall', 'roof', 'civil', 'project site', 'land', 'plot analysis', 'valuation', 'risk'];
     if (floorKeywords.some(k => lower.includes(k))) setCurrentView('floor');
     else if (materialKeywords.some(k => lower.includes(k))) setCurrentView('materials');
     else if (siteKeywords.some(k => lower.includes(k))) setCurrentView('site');
@@ -1388,11 +1430,67 @@ function App() {
                             { icon: Map, label: 'Masterplan', view: 'market' },
                             { icon: Package, label: 'Materials', view: 'materials' },
                           ].map(item => (
-                            <button key={item.view} className="prompt-quick-link" onClick={() => setCurrentView(item.view)}>
+                            <button key={item.view} className="prompt-quick-link" onClick={() => handleQuickGenerate(item.view)}>
                               <item.icon size={12} /> {item.label}
                             </button>
                           ))}
                         </div>
+
+                        {/* Quick generation result */}
+                        {quickGen && (
+                          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
+                            {quickGen.loading ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                                <Loader2 size={14} className="spin" /> Generating preview…
+                              </div>
+                            ) : quickGen.error ? (
+                              <p style={{ color: '#ef4444', fontSize: '13px', margin: 0 }}>{quickGen.error}</p>
+                            ) : quickGen.result?._siteMsg ? (
+                              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 12px' }}>
+                                Site Analyzer requires a construction site photo. Upload one in the dedicated tool for AI-powered stage detection and valuation.
+                              </p>
+                            ) : quickGen.result?.hotspots?.[0] ? (
+                              <div style={{ marginBottom: '12px' }}>
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 4px' }}>Top hotspot</p>
+                                <strong style={{ fontSize: '14px' }}>{quickGen.result.hotspots[0].name}</strong>
+                                <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99,102,241,0.15)', color: 'var(--accent-primary)' }}>{quickGen.result.hotspots[0].typology}</span>
+                                {quickGen.result.hotspots[0].ticketSizeINR && (
+                                  <p style={{ fontSize: '13px', color: 'var(--accent-primary)', fontWeight: 600, margin: '4px 0' }}>
+                                    ₹{(quickGen.result.hotspots[0].ticketSizeINR.min / 1e7).toFixed(1)}–{(quickGen.result.hotspots[0].ticketSizeINR.max / 1e7).toFixed(1)} Cr
+                                  </p>
+                                )}
+                                {quickGen.result.hotspots[0].reasonNotes?.[0] && (
+                                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>{quickGen.result.hotspots[0].reasonNotes[0]}</p>
+                                )}
+                              </div>
+                            ) : quickGen.result?.materials?.[0] ? (
+                              <div style={{ marginBottom: '12px' }}>
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 4px' }}>Top result</p>
+                                <strong style={{ fontSize: '14px' }}>{quickGen.result.materials[0].name}</strong>
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>{quickGen.result.materials[0].brand} · {quickGen.result.materials[0].grade}</p>
+                              </div>
+                            ) : quickGen.result?.plans?.[0] ? (
+                              <div style={{ marginBottom: '12px' }}>
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 4px' }}>Generated plan</p>
+                                <strong style={{ fontSize: '14px' }}>{quickGen.result.plans[0].config || quickGen.result.plans[0].name}</strong>
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                                  {quickGen.result.plans[0].totalArea} · Est. {quickGen.result.plans[0].estimatedCost}
+                                </p>
+                              </div>
+                            ) : null}
+
+                            {!quickGen.loading && (
+                              <a
+                                href={TOOL_LINKS[quickGen.tool]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'var(--accent-primary)', color: '#fff', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', fontWeight: 600 }}
+                              >
+                                <Sparkles size={12} /> For better generation — open {TOOL_LABELS[quickGen.tool]}
+                              </a>
+                            )}
+                          </motion.div>
+                        )}
                       </motion.div>
                     </div>
                   </div>

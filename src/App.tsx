@@ -5,7 +5,7 @@ import {
   TrendingUp, CheckCircle2, Loader2,
   Shield, AlertTriangle, ChevronDown, ChevronUp,
   Ruler, Compass, Download, Rocket, MessageSquare, PanelRightClose, PanelRightOpen,
-  Trash2, Eye
+  Trash2, Eye, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
@@ -55,12 +55,12 @@ function authHeaders(): Record<string, string> {
 
 const Sidebar = ({ active, setActive, user, onLogout, onLoginClick, isDarkMode, toggleTheme }: any) => {
   const topItems = [
-    { id: 'home', icon: Home, label: 'Home' },
-    { id: 'site', icon: Building2, label: 'Site Analyzer' },
-    { id: 'floor', icon: LayoutGrid, label: 'Floor Plans' },
-    { id: 'materials', icon: Package, label: 'Materials' },
-    { id: 'market', icon: Map, label: 'Masterplan' },
-    { id: 'chatbot', icon: MessageSquare, label: 'Chatbot' },
+    { id: 'home', icon: Home, label: 'Home', link: null },
+    { id: 'site', icon: Building2, label: 'Site Analyzer', link: 'https://www.builtattic.com/pages/vision' },
+    { id: 'floor', icon: LayoutGrid, label: 'Floor Plans', link: 'https://www.builtattic.com/pages/vitruviai' },
+    { id: 'materials', icon: Package, label: 'Materials', link: 'https://www.builtattic.com/pages/vision' },
+    { id: 'market', icon: Map, label: 'Masterplan', link: 'https://www.builtattic.com/collections/design-studio?page=2' },
+    { id: 'chatbot', icon: MessageSquare, label: 'Chatbot', link: 'https://www.builtattic.com/pages/chatbot' },
   ];
   const bottomItems = [
     { id: 'projects', icon: Briefcase, label: 'My Dashboard' },
@@ -78,15 +78,23 @@ const Sidebar = ({ active, setActive, user, onLogout, onLoginClick, isDarkMode, 
 
         <div className="sidebar-nav-group">
           {topItems.map(item => (
-            <div key={item.id} className={`nav-item-wide ${active === item.id ? 'active' : ''}`} onClick={() => {
-              if (item.id === 'chatbot') {
-                window.open('https://www.builtattic.com/pages/chatbot', '_blank');
-              } else {
-                setActive(item.id);
-              }
-            }}>
-              <item.icon size={18} />
-              <span>{item.label}</span>
+            <div key={item.id} className={`nav-item-wide ${active === item.id ? 'active' : ''}`}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              onClick={() => { if (item.id !== 'chatbot') setActive(item.id); }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <item.icon size={18} />
+                <span>{item.label}</span>
+              </div>
+              {item.link && (
+                <a href={item.link} target="_blank" rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  title={`Open ${item.label} on builtattic.com`}
+                  style={{ display: 'flex', alignItems: 'center', padding: '2px', color: 'var(--text-secondary)', opacity: 0.6, transition: 'opacity 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}>
+                  <ExternalLink size={13} />
+                </a>
+              )}
             </div>
           ))}
         </div>
@@ -1284,13 +1292,6 @@ function App() {
 
   const [quickGen, setQuickGen] = useState<{ loading: boolean; result: any; tool: string; error: string } | null>(null);
 
-  // ── Dedicated tool links — replace '#' with your actual URLs ──────────────
-  const TOOL_LINKS: Record<string, string> = {
-    site:      'https://www.builtattic.com/pages/vision',
-    floor:     'https://www.builtattic.com/pages/vitruviai',
-    market:    'https://www.builtattic.com/collections/design-studio?page=2',
-    materials: 'https://www.builtattic.com/pages/vision',
-  };
   const TOOL_LABELS: Record<string, string> = {
     site:      'Site Analyzer',
     floor:     'Floor Plans',
@@ -1505,14 +1506,12 @@ function App() {
                             ) : null}
 
                             {!quickGen.loading && (
-                              <a
-                                href={TOOL_LINKS[quickGen.tool]}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'var(--accent-primary)', color: '#fff', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', fontWeight: 600 }}
+                              <button
+                                onClick={() => setCurrentView(quickGen.tool)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'var(--accent-primary)', color: '#fff', borderRadius: '8px', fontSize: '12px', border: 'none', cursor: 'pointer', fontWeight: 600 }}
                               >
-                                <Sparkles size={12} /> For better generation — open {TOOL_LABELS[quickGen.tool]}
-                              </a>
+                                <Sparkles size={12} /> Open {TOOL_LABELS[quickGen.tool]}
+                              </button>
                             )}
                           </motion.div>
                         )}

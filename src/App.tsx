@@ -69,9 +69,7 @@ const Sidebar = ({ active, setActive, user, onLogout, onLoginClick, isDarkMode, 
   return (
     <div className="sidebar">
       <div className="sidebar-top">
-        <div className="builtattic-logo-sidebar" onClick={() => setActive('home')} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px', color: 'var(--text-primary)' }}>built<span style={{ color: 'var(--accent-primary)' }}>attic</span></span>
-        </div>
+        
 
         <div className="sidebar-search">
           <Search size={14} color="var(--text-secondary)" />

@@ -706,7 +706,13 @@ const FloorView = ({ onGenerated }: any) => {
       const data = await res.json();
       if (data.image) {
         setBlueprintCache(prev => ({ ...prev, [planIndex]: { image: data.image, description: data.description || '' } }));
-        if (planIndex === 0) onGenerated?.();
+        if (planIndex === 0) {
+          const sid = genId || generationId;
+          if (sid) {
+            try { sessionStorage.setItem(`blueprint_${sid}`, data.image); } catch (_) {}
+          }
+          onGenerated?.();
+        }
       }
     } catch (e) { /* silent — user can switch to schematic */ }
     finally { setBlueprintLoading(false); }
@@ -1160,11 +1166,10 @@ const ProjectsView = ({ user, onLoginClick, onGenerationsCleared }: any) => {
                   {/* Thumbnail */}
                   {(() => {
                     const token = localStorage.getItem('token');
-                    const imgUrl = g.thumbnailUrl
-                      ? cloudinaryThumb(g.thumbnailUrl)
-                      : g.hasImage
-                      ? `${API_URL}/my/generations/${g._id}/image?token=${token}`
-                      : null;
+                    const sessionImg = g._id ? sessionStorage.getItem(`blueprint_${g._id}`) : null;
+                    const imgUrl = sessionImg
+                      || (g.thumbnailUrl ? cloudinaryThumb(g.thumbnailUrl) : null)
+                      || (g.hasImage ? `${API_URL}/my/generations/${g._id}/image?token=${token}` : null);
                     return (
                       <div style={{ width: '120px', minHeight: '80px', flexShrink: 0, position: 'relative', overflow: 'hidden', cursor: imgUrl ? 'pointer' : 'default' }}
                         onClick={() => imgUrl && setPreviewImage({ url: getFullImageUrl(g), title: g.title, downloadUrl: getDownloadUrl(g) })}>
@@ -1194,20 +1199,27 @@ const ProjectsView = ({ user, onLoginClick, onGenerationsCleared }: any) => {
                       <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{g.type?.replace(/-/g, ' ')} | {timeAgo(g.createdAt)}</p>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {g.hasImage && (
-                        <>
-                          <button onClick={() => setPreviewImage({ url: getFullImageUrl(g), title: g.title, downloadUrl: getDownloadUrl(g) })}
-                            style={{ background: 'rgba(99,102,241,0.1)', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color: 'var(--accent-primary)', display: 'flex' }}
-                            title="Preview">
-                            <Eye size={14} />
-                          </button>
-                          <a href={getDownloadUrl(g)}
-                            style={{ background: 'rgba(16,185,129,0.1)', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color: '#10b981', display: 'flex', textDecoration: 'none' }}
-                            title="Download">
-                            <Download size={14} />
-                          </a>
-                        </>
-                      )}
+                      {(() => {
+                        const sessionImg = g._id ? sessionStorage.getItem(`blueprint_${g._id}`) : null;
+                        const hasAnyImage = g.hasImage || g.thumbnailUrl || sessionImg;
+                        const previewUrl = sessionImg || getFullImageUrl(g);
+                        const downloadUrl = sessionImg ? sessionImg : getDownloadUrl(g);
+                        return hasAnyImage ? (
+                          <>
+                            <button onClick={() => setPreviewImage({ url: previewUrl, title: g.title, downloadUrl })}
+                              style={{ background: 'rgba(99,102,241,0.1)', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color: 'var(--accent-primary)', display: 'flex' }}
+                              title="Preview">
+                              <Eye size={14} />
+                            </button>
+                            <a href={downloadUrl}
+                              download={sessionImg ? `${(g.title || 'floorplan').replace(/[^a-zA-Z0-9-_]/g, '-')}.png` : undefined}
+                              style={{ background: 'rgba(16,185,129,0.1)', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color: '#10b981', display: 'flex', textDecoration: 'none' }}
+                              title="Download">
+                              <Download size={14} />
+                            </a>
+                          </>
+                        ) : null;
+                      })()}
                       <span className="detail-badge badge-green">{g.status}</span>
                     </div>
                   </div>
@@ -1685,7 +1697,8 @@ function App() {
                   const color = typeColors[gen.type] || '#0066ff';
                   const navTarget = typeNavTargets[gen.type] || 'projects';
                   const token = localStorage.getItem('token');
-                  const storedImageUrl = gen.thumbnailUrl || (gen.hasImage ? `${API_URL}/my/generations/${gen._id}/image?token=${token}` : null);
+                  const sessionImg = gen._id ? sessionStorage.getItem(`blueprint_${gen._id}`) : null;
+                  const storedImageUrl = sessionImg || gen.thumbnailUrl || (gen.hasImage ? `${API_URL}/my/generations/${gen._id}/image?token=${token}` : null);
                   const fallbackThumb = typeThumbnails[gen.type];
                   return (
                     <div key={gen._id} className="recent-gen-item-v2" onClick={() => setCurrentView(navTarget)}>

@@ -118,15 +118,20 @@ const MobileApp = ({
                 </section>
 
                 <section className="mobile-section">
-                  <div className="section-header">
+                  <div className="section-header section-header--marketplace">
                     <h3>Marketplace</h3>
-                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', maxWidth: '200px' }}>
+                    <div className="marketplace-tab-strip" role="tablist" aria-label="Marketplace category">
                       {['All', 'Residential', 'Commercial'].map(t => (
-                        <span key={t} 
+                        <button
+                          key={t}
+                          type="button"
+                          role="tab"
+                          aria-selected={activeTab === t}
+                          className={`marketplace-tab-item${activeTab === t ? ' marketplace-tab-item--active' : ''}`}
                           onClick={() => setActiveTab(t)}
-                          style={{ fontSize: '11px', color: activeTab === t ? 'var(--accent-primary)' : 'var(--text-secondary)', fontWeight: 600 }}>
+                        >
                           {t}
-                        </span>
+                        </button>
                       ))}
                     </div>
                   </div>

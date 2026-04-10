@@ -10,9 +10,41 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { generateStructuredData, generateFloorPlanImage } from './lib/gemini.js';
 import { computeValuation } from './lib/valuation-engine.js';
+import { v2 as cloudinary } from 'cloudinary';
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+// ─── Cloudinary setup ─────────────────────────────────────────────────────────
+const cloudinaryEnabled = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+if (cloudinaryEnabled) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+  console.log('Cloudinary: enabled');
+} else {
+  console.warn('Cloudinary: disabled (missing env vars) — falling back to base64 in MongoDB');
+}
+
+function uploadBufferToCloudinary(buffer, { userId, type, label }) {
+  return new Promise((resolve, reject) => {
+    const folder = `builtattic/${userId || 'anon'}/${type}`;
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: 'image', context: label ? { label } : undefined },
+      (err, result) => (err ? reject(err) : resolve(result))
+    );
+    stream.end(buffer);
+  });
+}
+
+function buildDownloadUrl(secureUrl, filename) {
+  // Inject fl_attachment:<name> transformation for forced download
+  const safe = (filename || 'image').replace(/[^a-zA-Z0-9-_]/g, '-');
+  return secureUrl.replace('/upload/', `/upload/fl_attachment:${safe}/`);
+}
 
 let connectPromise = null;
 
@@ -366,7 +398,9 @@ app.get('/my/generations', authenticateToken, async (req, res) => {
     const filter = { userId: new mongoose.Types.ObjectId(req.user.userId) };
     if (type) filter.type = type;
 
-    const generations = await db().collection('generations').find(filter)
+    const generations = await db().collection('generations').find(filter, {
+      projection: { thumbnail: 0, 'images.data': 0, result: 0 }
+    })
       .sort({ createdAt: -1 })
       .limit(Number(limit))
       .toArray();
@@ -438,15 +472,43 @@ app.post('/analyze', optionalAuth, upload.single('image'), async (req, res) => {
 
     // Save to generations collection if logged in
     if (req.user) {
-      await db().collection('generations').insertOne({
+      const genDoc = {
         userId: new mongoose.Types.ObjectId(req.user.userId),
         type: 'site-analysis',
         title: `Site Analysis - ${location || 'Unknown'}`,
         input: { location, projectType, scale, note },
         result: combined,
+        hasImage: true,
         status: 'completed',
         createdAt: new Date()
-      });
+      };
+
+      if (cloudinaryEnabled) {
+        try {
+          const uploaded = await uploadBufferToCloudinary(image.buffer, {
+            userId: req.user.userId,
+            type: 'site-analysis',
+            label: 'original',
+          });
+          genDoc.thumbnailUrl = uploaded.secure_url;
+          genDoc.thumbnailPublicId = uploaded.public_id;
+          genDoc.images = [{
+            url: uploaded.secure_url,
+            publicId: uploaded.public_id,
+            label: 'original',
+            createdAt: new Date(),
+          }];
+        } catch (e) {
+          console.error('Cloudinary upload failed, falling back to base64:', e);
+          const siteThumbnail = `data:${image.mimetype};base64,${image.buffer.toString('base64')}`;
+          genDoc.thumbnail = siteThumbnail;
+        }
+      } else {
+        const siteThumbnail = `data:${image.mimetype};base64,${image.buffer.toString('base64')}`;
+        genDoc.thumbnail = siteThumbnail;
+      }
+
+      await db().collection('generations').insertOne(genDoc);
     }
 
     res.json({ ...combined, timestamp: new Date() });
@@ -607,8 +669,9 @@ CRITICAL RULES:
 
     const result = await generateStructuredData(prompt);
 
+    let generationId = null;
     if (req.user) {
-      await db().collection('generations').insertOne({
+      const genResult = await db().collection('generations').insertOne({
         userId: new mongoose.Types.ObjectId(req.user.userId),
         type: 'floor-plan',
         title: `Floor Plan - ${bhk}BHK ${style || 'Modern'}`,
@@ -617,9 +680,10 @@ CRITICAL RULES:
         status: 'completed',
         createdAt: new Date()
       });
+      generationId = genResult.insertedId;
     }
 
-    res.json(result);
+    res.json({ ...result, generationId });
   } catch (error) {
     console.error('Floor plan error:', error);
     res.status(500).json({ error: 'Failed to generate floor plans' });
@@ -677,8 +741,47 @@ IMPORTANT: This is the "${variantName || 'Standard'}" variant — make the layou
       return res.status(500).json({ error: 'Image generation failed — no image returned from model' });
     }
 
+    // Save image to generation record if authenticated and generationId provided
+    let cloudinaryUrl = null;
+    if (req.user && req.body.generationId) {
+      try {
+        if (cloudinaryEnabled) {
+          const buffer = Buffer.from(imageBase64, 'base64');
+          const uploaded = await uploadBufferToCloudinary(buffer, {
+            userId: req.user.userId,
+            type: 'floor-plan',
+            label: variantName || 'Blueprint',
+          });
+          cloudinaryUrl = uploaded.secure_url;
+          const imgEntry = {
+            url: uploaded.secure_url,
+            publicId: uploaded.public_id,
+            label: variantName || 'Blueprint',
+            createdAt: new Date(),
+          };
+          await db().collection('generations').updateOne(
+            { _id: new mongoose.Types.ObjectId(req.body.generationId), userId: new mongoose.Types.ObjectId(req.user.userId) },
+            {
+              $set: { thumbnailUrl: uploaded.secure_url, thumbnailPublicId: uploaded.public_id, hasImage: true },
+              $push: { images: imgEntry }
+            }
+          );
+        } else {
+          const imageDataUri = `data:${imageMimeType};base64,${imageBase64}`;
+          await db().collection('generations').updateOne(
+            { _id: new mongoose.Types.ObjectId(req.body.generationId), userId: new mongoose.Types.ObjectId(req.user.userId) },
+            {
+              $set: { thumbnail: imageDataUri, hasImage: true },
+              $push: { images: { data: imageDataUri, label: variantName || 'Blueprint', createdAt: new Date() } }
+            }
+          );
+        }
+      } catch (e) { console.error('Failed to save image to generation:', e); }
+    }
+
     res.json({
-      image: `data:${imageMimeType};base64,${imageBase64}`,
+      image: cloudinaryUrl || `data:${imageMimeType};base64,${imageBase64}`,
+      url: cloudinaryUrl,
       description: textContent || `${bhk}BHK ${variantName || style || 'Modern'} floor plan`
     });
   } catch (error) {
@@ -716,6 +819,117 @@ app.post('/materials', optionalAuth, async (req, res) => {
   } catch (error) {
     console.error('Materials error:', error);
     res.status(500).json({ error: 'Failed to search materials' });
+  }
+});
+
+// ─── Generation Image Endpoint ────────────────────────────────────────────────
+
+app.get('/my/generations/:id/image', (req, res, next) => {
+  // Allow token from query param for <img> tags
+  if (req.query.token && !req.headers['authorization']) {
+    req.headers['authorization'] = `Bearer ${req.query.token}`;
+  }
+  next();
+}, authenticateToken, async (req, res) => {
+  try {
+    const gen = await db().collection('generations').findOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id), userId: new mongoose.Types.ObjectId(req.user.userId) },
+      { projection: { thumbnail: 1, thumbnailUrl: 1 } }
+    );
+    if (!gen) return res.status(404).json({ error: 'No image found' });
+
+    // Prefer Cloudinary redirect
+    if (gen.thumbnailUrl) {
+      return res.redirect(302, gen.thumbnailUrl);
+    }
+
+    if (!gen.thumbnail) return res.status(404).json({ error: 'No image found' });
+
+    const matches = gen.thumbnail.match(/^data:(.+);base64,(.+)$/);
+    if (!matches) return res.status(500).json({ error: 'Invalid image data' });
+
+    const mimeType = matches[1];
+    const buffer = Buffer.from(matches[2], 'base64');
+    res.set('Content-Type', mimeType);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.set('Content-Disposition', `inline; filename="generation-${req.params.id}.${mimeType.split('/')[1]}"`);
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch image' });
+  }
+});
+
+// ─── Generation Image Download Endpoint ───────────────────────────────────────
+
+app.get('/my/generations/:id/download', (req, res, next) => {
+  if (req.query.token && !req.headers['authorization']) {
+    req.headers['authorization'] = `Bearer ${req.query.token}`;
+  }
+  next();
+}, authenticateToken, async (req, res) => {
+  try {
+    const gen = await db().collection('generations').findOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id), userId: new mongoose.Types.ObjectId(req.user.userId) },
+      { projection: { thumbnail: 1, thumbnailUrl: 1, title: 1, type: 1 } }
+    );
+    if (!gen) return res.status(404).json({ error: 'No image found' });
+
+    const safeTitle = (gen.title || 'generation').replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-');
+
+    // Prefer Cloudinary signed-download redirect
+    if (gen.thumbnailUrl) {
+      return res.redirect(302, buildDownloadUrl(gen.thumbnailUrl, safeTitle));
+    }
+
+    if (!gen.thumbnail) return res.status(404).json({ error: 'No image found' });
+
+    const matches = gen.thumbnail.match(/^data:(.+);base64,(.+)$/);
+    if (!matches) return res.status(500).json({ error: 'Invalid image data' });
+
+    const mimeType = matches[1];
+    const ext = mimeType.split('/')[1] || 'png';
+    const buffer = Buffer.from(matches[2], 'base64');
+    res.set('Content-Type', mimeType);
+    res.set('Content-Disposition', `attachment; filename="${safeTitle}.${ext}"`);
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to download image' });
+  }
+});
+
+// ─── Clear All Generations ────────────────────────────────────────────────────
+
+app.delete('/my/generations', authenticateToken, async (req, res) => {
+  console.log('DELETE /my/generations triggered for user:', req.user.userId);
+  try {
+    const userFilter = { userId: new mongoose.Types.ObjectId(req.user.userId) };
+
+    // Collect Cloudinary publicIds before deleting the docs
+    if (cloudinaryEnabled) {
+      const docs = await db().collection('generations')
+        .find(userFilter, { projection: { thumbnailPublicId: 1, 'images.publicId': 1 } })
+        .toArray();
+      const publicIds = docs.flatMap(d => [
+        d.thumbnailPublicId,
+        ...((d.images || []).map(i => i.publicId))
+      ]).filter(Boolean);
+      const unique = [...new Set(publicIds)];
+      if (unique.length) {
+        try {
+          await cloudinary.api.delete_resources(unique);
+          console.log(`Cloudinary: deleted ${unique.length} assets`);
+        } catch (e) {
+          console.error('Cloudinary delete failed (continuing with DB delete):', e);
+        }
+      }
+    }
+
+    const result = await db().collection('generations').deleteMany(userFilter);
+    console.log(`DELETE SUCCESS: Removed ${result.deletedCount} documents`);
+    res.json({ deleted: result.deletedCount, message: 'All generation history cleared' });
+  } catch (error) {
+    console.error('DELETE ERROR:', error);
+    res.status(500).json({ error: 'Failed to clear generations' });
   }
 });
 

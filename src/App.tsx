@@ -4,7 +4,8 @@ import {
   Sparkles, Upload, X, LogIn, Moon, Sun, Briefcase, FileText,
   TrendingUp, CheckCircle2, Loader2,
   Shield, AlertTriangle, ChevronDown, ChevronUp,
-  Ruler, Compass, Download, Rocket, MessageSquare, PanelRightClose, PanelRightOpen
+  Ruler, Compass, Download, Rocket, MessageSquare, PanelRightClose, PanelRightOpen,
+  Trash2, Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
@@ -270,6 +271,36 @@ const DesignDetail = ({ design, onClose }: { design: any; onClose: () => void })
             {design.description}
           </p>
         )}
+      </motion.div>
+    </div>
+  );
+};
+
+// ─── Image Preview Modal ──────────────────────────────────────────────────────
+
+const ImagePreviewModal = ({ imageUrl, title, onClose, downloadUrl }: { imageUrl: string; title: string; onClose: () => void; downloadUrl?: string }) => {
+  if (!imageUrl) return null;
+  return (
+    <div className="auth-modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+        onClick={e => e.stopPropagation()}
+        style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', maxWidth: '90vw', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {downloadUrl && (
+              <a href={downloadUrl} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', borderRadius: '8px', background: 'var(--accent-primary)', color: 'white', fontSize: '12px', fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>
+                <Download size={14} /> Download
+              </a>
+            )}
+            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}>
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflow: 'auto', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
+          <img src={imageUrl} alt={title} style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px' }} />
+        </div>
       </motion.div>
     </div>
   );
@@ -630,9 +661,10 @@ const FloorView = ({ onGenerated }: any) => {
   const [viewMode, setViewMode] = useState<'blueprint' | 'schematic'>('blueprint');
   const [blueprintCache, setBlueprintCache] = useState<Record<number, { image: string; description: string }>>({});
   const [blueprintLoading, setBlueprintLoading] = useState(false);
+  const [generationId, setGenerationId] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
-  const fetchBlueprintForPlan = async (plan: any, planIndex: number) => {
+  const fetchBlueprintForPlan = async (plan: any, planIndex: number, genId?: string) => {
     if (blueprintCache[planIndex]) return; // already cached
     setBlueprintLoading(true);
     try {
@@ -645,12 +677,14 @@ const FloorView = ({ onGenerated }: any) => {
           floors: Number(floors), facing, location,
           variantName: plan.name || plan.config,
           variantFeatures: (plan.features || []).join(', '),
-          roomLayout: roomSummary
+          roomLayout: roomSummary,
+          generationId: genId || generationId
         })
       });
       const data = await res.json();
       if (data.image) {
         setBlueprintCache(prev => ({ ...prev, [planIndex]: { image: data.image, description: data.description || '' } }));
+        if (planIndex === 0) onGenerated?.();
       }
     } catch (e) { /* silent — user can switch to schematic */ }
     finally { setBlueprintLoading(false); }
@@ -659,6 +693,7 @@ const FloorView = ({ onGenerated }: any) => {
   const handleGenerate = async () => {
     setLoading(true); setError(''); setResult(null); setActivePlan(0);
     setBlueprintCache({}); setBlueprintLoading(false); setViewMode('blueprint');
+    setGenerationId(null);
     const payload = { bedrooms: Number(bedrooms), budget, style, area, location, plotWidth: Number(plotWidth), plotLength: Number(plotLength), floors: Number(floors), facing };
 
     try {
@@ -666,10 +701,11 @@ const FloorView = ({ onGenerated }: any) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setResult(data);
+      if (data.generationId) setGenerationId(data.generationId);
       onGenerated?.();
       // Auto-fetch image for first plan variant
       if (data.plans?.[0]) {
-        setTimeout(() => fetchBlueprintForPlan(data.plans[0], 0), 0);
+        setTimeout(() => fetchBlueprintForPlan(data.plans[0], 0, data.generationId), 0);
       }
     } catch (err: any) { setError(err.message); } finally { setLoading(false); }
   };
@@ -977,10 +1013,12 @@ const MaterialsView = ({ onGenerated }: any) => {
 
 // ─── Projects View (My Generations) ───────────────────────────────────────────
 
-const ProjectsView = ({ user, onLoginClick }: any) => {
+const ProjectsView = ({ user, onLoginClick, onGenerationsCleared }: any) => {
   const [generations, setGenerations] = useState<any[]>([]);
   const [designs, setDesigns] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string; downloadUrl: string } | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -989,7 +1027,41 @@ const ProjectsView = ({ user, onLoginClick }: any) => {
     fetch(`${API_URL}/my/orders`, { headers: { ...authHeaders() } }).then(r => r.json()).then(d => Array.isArray(d) && setOrders(d)).catch(() => {});
   }, [user]);
 
+  const handleClearHistory = async () => {
+    if (!window.confirm('Are you sure you want to clear all generation history? This cannot be undone.')) return;
+    setClearing(true);
+    try {
+      const res = await fetch(`${API_URL}/my/generations`, { method: 'DELETE', headers: { ...authHeaders() } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(`Failed to clear history: ${data.error || res.statusText || 'Unknown error'}`);
+        return;
+      }
+      setGenerations([]);
+      onGenerationsCleared?.();
+    } catch (e: any) {
+      alert(`Network error clearing history: ${e?.message || e}`);
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const token = localStorage.getItem('token');
+  const cloudinaryThumb = (url: string) =>
+    url.includes('/upload/') && !url.includes('/upload/w_')
+      ? url.replace('/upload/', '/upload/w_400,h_300,c_fill,q_auto,f_auto/')
+      : url;
+  const getImageUrl = (g: any) =>
+    g.thumbnailUrl ? cloudinaryThumb(g.thumbnailUrl) : `${API_URL}/my/generations/${g._id}/image?token=${token}`;
+  const getFullImageUrl = (g: any) =>
+    g.thumbnailUrl || `${API_URL}/my/generations/${g._id}/image?token=${token}`;
+  const getDownloadUrl = (g: any) =>
+    g.thumbnailUrl
+      ? g.thumbnailUrl.replace('/upload/', `/upload/fl_attachment:${(g.title || 'generation').replace(/[^a-zA-Z0-9-_]/g, '-')}/`)
+      : `${API_URL}/my/generations/${g._id}/download?token=${token}`;
+
   const typeIcons: any = { 'site-analysis': Building2, masterplan: Map, 'floor-plan': LayoutGrid, 'material-search': Package };
+  const typeColors: any = { 'site-analysis': '#0066ff', masterplan: '#7c3aed', 'floor-plan': '#0891b2', 'material-search': '#d97706' };
 
   if (!user) {
     return (
@@ -1048,19 +1120,65 @@ const ProjectsView = ({ user, onLoginClick }: any) => {
 
       {/* AI Generations */}
       <div>
-        <h3 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>AI Generations</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>AI Generations</h3>
+          {generations.length > 0 && (
+            <button onClick={handleClearHistory} disabled={clearing}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
+              {clearing ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
+              {clearing ? 'Clearing...' : 'Clear All'}
+            </button>
+          )}
+        </div>
         {generations.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {generations.map((g: any) => {
               const Icon = typeIcons[g.type] || FileText;
+              const color = typeColors[g.type] || '#0066ff';
               return (
-                <div key={g._id} style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ padding: '10px', background: 'var(--bg-main)', borderRadius: '10px' }}><Icon size={20} color="var(--accent-primary)" /></div>
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ fontSize: '14px' }}>{g.title}</strong>
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{g.type?.replace(/-/g, ' ')} | {timeAgo(g.createdAt)}</p>
+                <div key={g._id} style={{ background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden', display: 'flex', alignItems: 'stretch' }}>
+                  {/* Thumbnail */}
+                  {g.hasImage ? (
+                    <div style={{ width: '120px', minHeight: '80px', flexShrink: 0, cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
+                      onClick={() => setPreviewImage({ url: getFullImageUrl(g), title: g.title, downloadUrl: getDownloadUrl(g) })}>
+                      <img src={getImageUrl(g)} alt={g.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e: any) => { e.target.style.display = 'none'; }} />
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s' }}
+                        onMouseEnter={(e: any) => e.currentTarget.style.opacity = '1'}
+                        onMouseLeave={(e: any) => e.currentTarget.style.opacity = '0'}>
+                        <Eye size={20} color="white" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ width: '80px', minHeight: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${color}08` }}>
+                      <Icon size={24} color={color} />
+                    </div>
+                  )}
+                  {/* Content */}
+                  <div style={{ flex: 1, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ fontSize: '14px' }}>{g.title}</strong>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{g.type?.replace(/-/g, ' ')} | {timeAgo(g.createdAt)}</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {g.hasImage && (
+                        <>
+                          <button onClick={() => setPreviewImage({ url: getFullImageUrl(g), title: g.title, downloadUrl: getDownloadUrl(g) })}
+                            style={{ background: 'rgba(99,102,241,0.1)', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color: 'var(--accent-primary)', display: 'flex' }}
+                            title="Preview">
+                            <Eye size={14} />
+                          </button>
+                          <a href={getDownloadUrl(g)}
+                            style={{ background: 'rgba(16,185,129,0.1)', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color: '#10b981', display: 'flex', textDecoration: 'none' }}
+                            title="Download">
+                            <Download size={14} />
+                          </a>
+                        </>
+                      )}
+                      <span className="detail-badge badge-green">{g.status}</span>
+                    </div>
                   </div>
-                  <span className="detail-badge badge-green">{g.status}</span>
                 </div>
               );
             })}
@@ -1069,6 +1187,18 @@ const ProjectsView = ({ user, onLoginClick }: any) => {
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>No AI analyses yet. Try Site Analyzer, Floor Plans, or Masterplan Explorer.</p>
         )}
       </div>
+
+      {/* Image Preview Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <ImagePreviewModal
+            imageUrl={previewImage.url}
+            title={previewImage.title}
+            downloadUrl={previewImage.downloadUrl}
+            onClose={() => setPreviewImage(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -1131,19 +1261,48 @@ function App() {
   const refreshAll = () => { fetchMyGenerations(); };
   const openLogin = () => { setIsLoginView(true); setIsAuthModalOpen(true); };
 
+  const [clearingRecent, setClearingRecent] = useState(false);
+  const handleClearRecent = async () => {
+    if (!user) { alert('Please log in first.'); return; }
+    if (!window.confirm('Clear all recent generation history? This cannot be undone.')) return;
+    setClearingRecent(true);
+    try {
+      const res = await fetch(`${API_URL}/my/generations`, { method: 'DELETE', headers: { ...authHeaders() } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(`Failed to clear history: ${data.error || res.statusText || 'Unknown error'}`);
+        return;
+      }
+      setMyGenerations([]);
+    } catch (e: any) {
+      alert(`Network error clearing history: ${e?.message || e}`);
+    } finally {
+      setClearingRecent(false);
+    }
+  };
+
   const handleBannerGenerate = () => {
     if (selectedFile) { setCurrentView('site'); return; }
     if (!prompt) return;
     const lower = prompt.toLowerCase();
     const floorKeywords = ['bhk', 'floor plan', 'floorplan', 'bedroom', 'house plan', 'cabin', 'villa', 'apartment', 'duplex', 'bungalow', 'penthouse', 'studio', 'flat', 'residence'];
     const materialKeywords = ['material', 'cement', 'steel', 'brick', 'tile', 'paint', 'wood', 'marble', 'granite', 'plywood', 'sand', 'aggregate', 'rebar'];
+    const siteKeywords = ['site', 'construction', 'analyze', 'analysis', 'building', 'progress', 'stage'];
     if (floorKeywords.some(k => lower.includes(k))) setCurrentView('floor');
     else if (materialKeywords.some(k => lower.includes(k))) setCurrentView('materials');
+    else if (siteKeywords.some(k => lower.includes(k))) setCurrentView('site');
     else setCurrentView('market');
   };
 
   const typeIcons: any = { 'site-analysis': Building2, masterplan: Map, 'floor-plan': LayoutGrid, 'material-search': Package };
   const typeColors: any = { 'site-analysis': '#0066ff', masterplan: '#7c3aed', 'floor-plan': '#0891b2', 'material-search': '#d97706' };
+  const typeThumbnails: any = {
+    'site-analysis': 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=120&h=80&fit=crop',
+    'masterplan': 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=120&h=80&fit=crop',
+    'floor-plan': 'https://images.unsplash.com/photo-1574362848149-11496d93a7c7?w=120&h=80&fit=crop',
+    'material-search': 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=120&h=80&fit=crop'
+  };
+  const typeNavTargets: any = { 'site-analysis': 'site', 'masterplan': 'market', 'floor-plan': 'floor', 'material-search': 'materials' };
 
   if (isMobile) {
     return (
@@ -1199,6 +1358,18 @@ function App() {
                           <button className="firefly-generate-btn" onClick={handleBannerGenerate} disabled={!prompt}>
                             <Sparkles size={16} /> Generate
                           </button>
+                        </div>
+                        <div className="prompt-quick-links">
+                          {[
+                            { icon: Building2, label: 'Site Analyzer', view: 'site' },
+                            { icon: LayoutGrid, label: 'Floor Plans', view: 'floor' },
+                            { icon: Map, label: 'Masterplan', view: 'market' },
+                            { icon: Package, label: 'Materials', view: 'materials' },
+                          ].map(item => (
+                            <button key={item.view} className="prompt-quick-link" onClick={() => setCurrentView(item.view)}>
+                              <item.icon size={12} /> {item.label}
+                            </button>
+                          ))}
                         </div>
                       </motion.div>
                     </div>
@@ -1353,17 +1524,27 @@ function App() {
               {currentView === 'market' && <MarketView user={user} onLoginClick={openLogin} onGenerated={refreshAll} />}
               {currentView === 'floor' && <FloorView onGenerated={refreshAll} />}
               {currentView === 'materials' && <MaterialsView onGenerated={refreshAll} />}
-              {currentView === 'projects' && <ProjectsView user={user} onLoginClick={openLogin} />}
+              {currentView === 'projects' && <ProjectsView user={user} onLoginClick={openLogin} onGenerationsCleared={refreshAll} />}
             </motion.div>
           </AnimatePresence>
         </div>
 
         <div className={`right-panel ${!isRightSidebarOpen ? 'collapsed' : ''}`}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', gap: '8px' }}>
             {isRightSidebarOpen && <h3 style={{ margin: 0 }}>Recent files</h3>}
-            <button className="toggle-right-sidebar" onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}>
-              {isRightSidebarOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {isRightSidebarOpen && user && myGenerations.length > 0 && (
+                <button onClick={handleClearRecent} disabled={clearingRecent}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: clearingRecent ? 'default' : 'pointer', transition: 'all 0.2s' }}
+                  title="Clear all generation history">
+                  {clearingRecent ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
+                  {clearingRecent ? 'Clearing...' : 'Clear All'}
+                </button>
+              )}
+              <button className="toggle-right-sidebar" onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}>
+                {isRightSidebarOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+              </button>
+            </div>
           </div>
           
           {isRightSidebarOpen && (
@@ -1372,14 +1553,31 @@ function App() {
                 {myGenerations.map((gen: any) => {
                   const Icon = typeIcons[gen.type] || FileText;
                   const color = typeColors[gen.type] || '#0066ff';
+                  const navTarget = typeNavTargets[gen.type] || 'projects';
+                  const token = localStorage.getItem('token');
+                  const storedImageUrl = gen.thumbnailUrl || (gen.hasImage ? `${API_URL}/my/generations/${gen._id}/image?token=${token}` : null);
+                  const fallbackThumb = typeThumbnails[gen.type];
                   return (
-                    <div key={gen._id} className="recent-gen-item" onClick={() => setCurrentView('projects')}>
-                      <div style={{ width: '32px', height: '32px', background: `${color}15`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon size={14} color={color} />
+                    <div key={gen._id} className="recent-gen-item-v2" onClick={() => setCurrentView(navTarget)}>
+                      <div className="recent-gen-thumb">
+                        {storedImageUrl ? (
+                          <img src={storedImageUrl} alt={gen.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} onError={(e: any) => { e.target.src = fallbackThumb || ''; }} />
+                        ) : fallbackThumb ? (
+                          <img src={fallbackThumb} alt={gen.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} onError={(e: any) => { e.target.style.display = 'none'; }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', background: `${color}15`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Icon size={20} color={color} />
+                          </div>
+                        )}
+                        <div className="recent-gen-type-badge" style={{ background: `${color}20`, color }}>
+                          <Icon size={10} /> {gen.type?.replace(/-/g, ' ')}
+                        </div>
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{gen.title}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{timeAgo(gen.createdAt)}</div>
+                      <div style={{ padding: '6px 10px 8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{gen.title}</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{timeAgo(gen.createdAt)}</div>
+                        </div>
                       </div>
                     </div>
                   );

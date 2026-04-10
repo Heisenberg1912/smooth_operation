@@ -54,7 +54,7 @@ const MobileApp = ({
       {/* Top Header */}
       <header className="mobile-header">
         <div className="mobile-logo-group" onClick={() => setCurrentView('home')}>
-          <img src="https://builtattic.com/assets/images/logo.png" alt="Builtattic" />
+          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px' }}>built<span style={{ color: 'var(--accent-primary)' }}>attic</span></span>
         </div>
         <div className="mobile-header-actions">
           <div className="mobile-profile-avatar" onClick={() => handleNavClick('profile')}>

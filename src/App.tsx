@@ -69,8 +69,8 @@ const Sidebar = ({ active, setActive, user, onLogout, onLoginClick, isDarkMode, 
   return (
     <div className="sidebar">
       <div className="sidebar-top">
-        <div className="builtattic-logo-sidebar" onClick={() => setActive('home')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <img src="https://builtattic.com/assets/images/logo.png" alt="Builtattic" style={{ height: '36px' }} onError={(e: any) => { e.target.style.display = 'none'; }} />
+        <div className="builtattic-logo-sidebar" onClick={() => setActive('home')} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px', color: 'var(--text-primary)' }}>built<span style={{ color: 'var(--accent-primary)' }}>attic</span></span>
         </div>
 
         <div className="sidebar-search">

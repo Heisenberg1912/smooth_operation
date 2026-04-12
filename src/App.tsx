@@ -382,14 +382,14 @@ const SiteView = ({ user, onLoginClick, onGenerated }: any) => {
   };
 
   return (
-    <div style={{ padding: '32px 48px' }}>
+    <div className="site-view">
       <h2 style={{ marginBottom: '8px', fontSize: '24px' }}>Site Analyzer</h2>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '14px' }}>
         Upload a construction site photo for AI-powered stage detection, valuation, and risk analysis.
       </p>
-      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+      <div className="site-view-panels">
         {/* Upload Panel */}
-        <div style={{ flex: 1, minWidth: '340px', background: 'var(--bg-card)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+        <div className="site-view-upload-panel" style={{ flex: 1, background: 'var(--bg-card)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
           <h3 style={{ margin: '0 0 16px' }}>Upload Site Image</h3>
           <div onDragOver={e => { e.preventDefault(); }} onDrop={e => { e.preventDefault(); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
             onClick={() => fileRef.current?.click()}
@@ -403,9 +403,9 @@ const SiteView = ({ user, onLoginClick, onGenerated }: any) => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
             <input type="text" placeholder="Location (e.g. Mumbai, Pune)" value={location} onChange={e => setLocation(e.target.value)} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }} />
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <input type="text" placeholder="Project type" value={projectType} onChange={e => setProjectType(e.target.value)} style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }} />
-              <select value={scale} onChange={e => setScale(e.target.value)} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }}>
+            <div className="site-view-inline-fields">
+              <input type="text" placeholder="Project type" value={projectType} onChange={e => setProjectType(e.target.value)} style={{ flex: 1, minWidth: 0, padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }} />
+              <select value={scale} onChange={e => setScale(e.target.value)} style={{ flex: '0 1 auto', minWidth: 0, padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }}>
                 <option>Low-rise</option><option>Mid-rise</option><option>High-rise</option><option>Large-site</option>
               </select>
             </div>
@@ -417,7 +417,7 @@ const SiteView = ({ user, onLoginClick, onGenerated }: any) => {
           </button>
         </div>
         {/* Results Panel */}
-        <div style={{ flex: 1, minWidth: '340px' }}>
+        <div className="site-view-results-panel" style={{ flex: 1 }}>
           {result?.base ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
@@ -461,7 +461,7 @@ const SiteView = ({ user, onLoginClick, onGenerated }: any) => {
               )}
             </motion.div>
           ) : (
-            <div style={{ background: 'var(--bg-card)', padding: '48px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="site-view-results-placeholder" style={{ background: 'var(--bg-card)', padding: '48px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               <Sparkles size={40} color="var(--accent-primary)" style={{ marginBottom: '16px' }} />
               <h3 style={{ margin: '0 0 8px' }}>Upload to Analyze</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '320px' }}>AI will detect construction stage, compute valuation, and flag deviations.</p>
@@ -495,21 +495,21 @@ const MarketView = ({ onGenerated }: any) => {
   };
 
   return (
-    <div style={{ padding: '32px 48px' }}>
+    <div className="market-view">
       <h2 style={{ marginBottom: '8px', fontSize: '24px' }}>Masterplan Explorer</h2>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '14px' }}>AI-identified high-growth real estate hotspots.</p>
-      <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <input type="text" placeholder="Enter city (e.g. Pune, Mumbai)" value={city} onChange={e => setCity(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }} />
+      <div className="market-view-search-card" style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)', marginBottom: '24px' }}>
+        <div className="market-view-search-row">
+          <input type="text" placeholder="Enter city (e.g. Pune, Mumbai)" value={city} onChange={e => setCity(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} style={{ flex: 1, minWidth: 0, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }} />
           <select value={country} onChange={e => setCountry(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }}>
             <option>India</option><option>USA</option><option>UAE</option><option>UK</option>
           </select>
-          <button className="generate-btn" onClick={handleSearch} disabled={!city || loading}>{loading ? <Loader2 size={16} className="spin" /> : <><Search size={16} /> Explore</>}</button>
+          <button type="button" className="generate-btn market-view-explore-btn" onClick={handleSearch} disabled={!city || loading}>{loading ? <Loader2 size={16} className="spin" /> : <><Search size={16} /> Explore</>}</button>
         </div>
         {error && <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '8px' }}>{error}</p>}
       </div>
       {result?.hotspots ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+        <div className="market-view-hotspots-grid">
           {result.hotspots.map((h: any, i: number) => (
             <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
               style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
@@ -528,7 +528,7 @@ const MarketView = ({ onGenerated }: any) => {
           ))}
         </div>
       ) : !loading && (
-        <div style={{ background: 'var(--bg-card)', padding: '64px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+        <div className="market-view-empty" style={{ background: 'var(--bg-card)', padding: '64px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
           <Map size={48} color="var(--accent-primary)" style={{ marginBottom: '16px' }} />
           <h3>Enter a city to explore hotspots</h3>
         </div>
@@ -1015,14 +1015,14 @@ const MaterialsView = ({ onGenerated }: any) => {
   };
 
   return (
-    <div style={{ padding: '32px 48px' }}>
+    <div className="materials-view">
       <h2 style={{ marginBottom: '8px', fontSize: '24px' }}>Material Finder</h2>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '14px' }}>AI-powered material search with suppliers and pricing.</p>
-      <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '24px' }}>
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-          <input type="text" placeholder="Search materials..." value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }} />
-          <input type="text" placeholder="Location" value={location} onChange={e => setLocation(e.target.value)} style={{ width: '150px', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }} />
-          <button className="generate-btn" onClick={handleSearch} disabled={!query || loading}>{loading ? <Loader2 size={16} className="spin" /> : <><Search size={16} /> Search</>}</button>
+      <div className="materials-view-search-card" style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '24px' }}>
+        <div className="materials-view-search-row">
+          <input type="text" placeholder="Search materials..." value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} className="materials-view-query-input" style={{ flex: 1, minWidth: 0, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }} />
+          <input type="text" placeholder="Location" value={location} onChange={e => setLocation(e.target.value)} className="materials-view-location-input" style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', outline: 'none' }} />
+          <button type="button" className="generate-btn materials-view-search-btn" onClick={handleSearch} disabled={!query || loading}>{loading ? <Loader2 size={16} className="spin" /> : <><Search size={16} /> Search</>}</button>
         </div>
         {error && <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '16px' }}>{error}</p>}
         {result?.materials ? (
@@ -1043,7 +1043,7 @@ const MaterialsView = ({ onGenerated }: any) => {
             ))}
           </div>
         ) : !loading && (
-          <div style={{ padding: '48px', textAlign: 'center' }}><Package size={40} color="var(--accent-primary)" style={{ marginBottom: '16px' }} /><p style={{ color: 'var(--text-secondary)' }}>Search for materials to see pricing.</p></div>
+          <div className="materials-view-empty" style={{ padding: '48px', textAlign: 'center' }}><Package size={40} color="var(--accent-primary)" style={{ marginBottom: '16px' }} /><p style={{ color: 'var(--text-secondary)' }}>Search for materials to see pricing.</p></div>
         )}
       </div>
     </div>

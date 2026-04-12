@@ -668,7 +668,7 @@
 
 .market-view h2 {
   overflow-wrap: anywhere;
-  word-break: break-word;
+  word-break: normal;
 }
 
 .market-view-search-card {
@@ -753,7 +753,7 @@
 
 .materials-view h2 {
   overflow-wrap: anywhere;
-  word-break: break-word;
+  word-break: normal;
 }
 
 .materials-view-search-card {
@@ -1198,7 +1198,8 @@
 
   .tool-card-mini span {
     line-height: 1.25;
-    word-break: break-word;
+    overflow-wrap: anywhere;
+    word-break: normal;
   }
 
   .tool-icon {

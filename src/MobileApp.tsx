@@ -120,13 +120,12 @@ const MobileApp = ({
                 <section className="mobile-section">
                   <div className="section-header section-header--marketplace">
                     <h3>Marketplace</h3>
-                    <div className="marketplace-tab-strip" role="tablist" aria-label="Marketplace category">
+                    <div className="marketplace-tab-strip" role="group" aria-label="Marketplace category">
                       {['All', 'Residential', 'Commercial'].map(t => (
                         <button
                           key={t}
                           type="button"
-                          role="tab"
-                          aria-selected={activeTab === t}
+                          aria-pressed={activeTab === t}
                           className={`marketplace-tab-item${activeTab === t ? ' marketplace-tab-item--active' : ''}`}
                           onClick={() => setActiveTab(t)}
                         >
